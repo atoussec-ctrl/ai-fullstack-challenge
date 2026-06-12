@@ -191,8 +191,8 @@ describe('chat session client', () => {
 
     expect(result.book.id).toBe('book_2')
     // Must be sent as FormData (no Content-Type header override)
-    const callArgs = fetchMock.mock.calls[0][1] as RequestInit
-    expect(callArgs.body).toBeInstanceOf(FormData)
+    const [, callInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(callInit.body).toBeInstanceOf(FormData)
   })
 
   it('uploads an attachment with FormData', async () => {
@@ -215,8 +215,8 @@ describe('chat session client', () => {
     expect(attachment.kind).toBe('image')
 
     // Verify FormData was used (no JSON Content-Type)
-    const callArgs = fetchMock.mock.calls[0][1] as RequestInit
-    expect(callArgs.body).toBeInstanceOf(FormData)
+    const [, callInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(callInit.body).toBeInstanceOf(FormData)
   })
 
   it('performs a semantic search', async () => {
