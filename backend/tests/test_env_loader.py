@@ -42,9 +42,7 @@ def test_load_project_env_normalizes_placeholder_langsmith_key(monkeypatch, tmp_
 
 def test_load_project_env_keeps_real_langsmith_key(monkeypatch, tmp_path):
     env_file = tmp_path / ".env"
-    env_file.write_text(
-        "LANGSMITH_API_KEY=lsv2_real\nLANGCHAIN_API_KEY=lsv2_legacy\n"
-    )
+    env_file.write_text("LANGSMITH_API_KEY=lsv2_real\nLANGCHAIN_API_KEY=lsv2_legacy\n")
 
     monkeypatch.setattr("app.env_loader.ENV_FILE", env_file)
     monkeypatch.delenv("LANGSMITH_API_KEY", raising=False)
