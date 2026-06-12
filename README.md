@@ -14,12 +14,15 @@ O projeto atende aos requisitos de uma prova backend: API REST em Flask, chatbot
 - [Stack tecnológica](#stack-tecnológica)
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Pré-requisitos](#pré-requisitos)
+- [Quick Start](#quick-start)
 - [Como clonar](#como-clonar)
 - [Configuração de ambiente](#configuração-de-ambiente)
 - [Como rodar](#como-rodar)
 - [Como testar](#como-testar)
 - [API REST](#api-rest)
 - [Documentação adicional](#documentação-adicional)
+- [Utilitários](#utilitários)
+- [Solução de problemas](#solução-de-problemas)
 - [Licença](#licença)
 
 ---
@@ -172,7 +175,7 @@ mindsight/
 │   │   ├── models.py        # Modelos SQLAlchemy
 │   │   ├── repositories.py  # Acesso a dados
 │   │   └── config.py        # Configurações por ambiente
-│   ├── tests/               # Testes pytest (40 testes)
+│   ├── tests/               # Testes pytest (41 testes)
 │   ├── storage/             # SQLite, uploads, índice FAISS
 │   ├── requirements.txt     # Dependências core
 │   ├── requirements-ai.txt  # Dependências opcionais de IA/RAG
@@ -197,26 +200,79 @@ mindsight/
 
 ## Pré-requisitos
 
-| Ferramenta | Versão mínima |
-|------------|---------------|
-| Python | 3.12+ |
-| Node.js | 20+ (recomendado 24) |
-| pnpm | 9+ |
-| Git | qualquer versão recente |
+| Ferramenta | Versão mínima | Observação |
+|------------|---------------|------------|
+| Python | 3.12+ | Com suporte a `venv` |
+| Node.js | 20+ (recomendado 24) | Inclui Corepack para `pnpm` |
+| pnpm | 9+ | `corepack enable` se o comando não existir |
+| Make | 4+ | Automação dos comandos abaixo |
+| Git | recente | Clone e versionamento |
+| curl | recente | Fallback do Makefile para bootstrap do pip |
+
+**Ubuntu/Debian — pacote do venv (recomendado):**
+
+```bash
+sudo apt update
+sudo apt install -y python3-venv python3-pip make curl
+# Use a versão do Python instalada, por exemplo:
+# sudo apt install -y python3.12-venv
+```
+
+Sem `python3-venv`, o `make install` ainda tenta um fallback (`venv --without-pip` + `get-pip.py`), mas instalar o pacote acima é mais simples.
 
 **Opcional:**
 
-- Docker e Docker Compose — para subir tudo em containers
-- Chave `OPENAI_API_KEY` — para respostas reais da IA
-- Chave `HUGGINGFACE_API_KEY` — para modelos DeepSeek via HF
-- Chave `LANGSMITH_API_KEY` — para tracing (defina `LANGSMITH_TRACING=true`)
+- Docker e Docker Compose — ambiente containerizado
+- Google Chrome — exigido pelos testes E2E do Playwright (`channel: chrome`)
+- Chave `OPENAI_API_KEY` — respostas reais via OpenAI
+- Chave `HUGGINGFACE_API_KEY` — modelos DeepSeek via Hugging Face
+- Chave `LANGSMITH_API_KEY` — tracing (`LANGSMITH_TRACING=true`)
+
+**Portas usadas localmente:**
+
+| Porta | Serviço |
+|-------|---------|
+| 5000 | Backend Flask |
+| 3002 | Frontend Vite (`strictPort`) |
+| 6006 | Storybook (opcional) |
+
+---
+
+## Quick Start
+
+Fluxo mínimo testado em clone limpo — funciona **sem chaves de API**:
+
+```bash
+git clone https://github.com/atoussec-ctrl/AI_PYTHON_TEST_FULLSTACK.git mindsight
+cd mindsight
+cp .env.example .env
+make install
+make seed
+make dev
+```
+
+Abra http://localhost:3002, envie uma pergunta sobre Python e confirme a resposta.
+
+Verifique o backend:
+
+```bash
+curl -s http://localhost:5000/api/v1/health
+```
+
+Rodar a suíte de testes:
+
+```bash
+make test
+```
+
+> O `.env.example` já vem com `CHAT_GATEWAY=local` e chaves vazias. Placeholders como `replace-me` são ignorados pelo backend.
 
 ---
 
 ## Como clonar
 
 ```bash
-git clone <url-do-repositorio> mindsight
+git clone https://github.com/atoussec-ctrl/AI_PYTHON_TEST_FULLSTACK.git mindsight
 cd mindsight
 ```
 
@@ -224,38 +280,31 @@ cd mindsight
 
 ## Configuração de ambiente
 
-1. Copie o template de variáveis de ambiente:
+1. Copie o template:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Edite `.env` com suas chaves e preferências. Exemplo mínimo para desenvolvimento local **sem** chaves de API:
+2. Para o **primeiro run**, o `.env.example` já está pronto para desenvolvimento local:
+   - `CHAT_GATEWAY=local` — respostas determinísticas, sem API externa
+   - chaves de API vazias
 
-```bash
-APP_ENV=development
-CHAT_GATEWAY=local
-DATABASE_URL=sqlite:///./storage/app.db
-CORS_ALLOWED_ORIGINS=http://localhost:3002,http://127.0.0.1:3002
-VITE_API_BASE_URL=http://localhost:5000/api/v1
-VITE_APP_NAME=MindSight AI
-```
-
-3. Para respostas reais com IA, configure pelo menos uma das opções:
+3. Para **IA real**, edite `.env`:
 
 ```bash
 # OpenAI
-OPENAI_API_KEY=sua-chave
+OPENAI_API_KEY=sua-chave-real
 OPENAI_MODEL=gpt-4.1-mini
 CHAT_GATEWAY=openai
 
-# ou Hugging Face (DeepSeek) — modo auto tenta HF primeiro
-HUGGINGFACE_API_KEY=sua-chave
+# ou Hugging Face (DeepSeek) — auto tenta HF -> OpenAI -> local
+HUGGINGFACE_API_KEY=sua-chave-real
 HF_CHAT_MODEL=deepseek-ai/DeepSeek-V4-Flash
 CHAT_GATEWAY=auto
 ```
 
-4. (Opcional) Instale dependências extras de IA/RAG:
+4. (Opcional) Dependências extras de IA/RAG:
 
 ```bash
 make backend-install-ai
@@ -322,6 +371,8 @@ O Vite faz proxy de `/api` para `http://localhost:5000` automaticamente.
 
 ### Opção 3 — Docker Compose
 
+Requer `.env` na raiz (`cp .env.example .env`). Libere as portas **5000** e **3002** antes de subir.
+
 ```bash
 docker compose up --build
 ```
@@ -334,7 +385,7 @@ Comandos úteis:
 
 ```bash
 make docker-down   # parar containers
-make docker-logs   # acompanhar logs
+make docker-logs     # acompanhar logs
 ```
 
 ---
@@ -367,7 +418,7 @@ cd backend
 .venv/bin/ruff check app tests
 ```
 
-**Suíte atual:** 40 testes cobrindo health, livros, chat, anexos, busca semântica, OpenAPI, seed, pin/delete de sessões e seleção de gateway.
+**Suíte atual:** 41 testes backend — health, livros, chat, anexos, busca semântica, OpenAPI, seed, pin/delete de sessões e seleção de gateway.
 
 ### Frontend (Vitest)
 
@@ -392,7 +443,7 @@ pnpm typecheck
 pnpm build
 ```
 
-**Suíte atual:** 8 arquivos, 41 testes unitários.
+**Suíte atual:** 9 arquivos, 43 testes unitários.
 
 ### E2E (Playwright)
 
@@ -401,7 +452,12 @@ cd frontend
 pnpm test:e2e
 ```
 
-Requer Google Chrome instalado no sistema (configurado com `channel: chrome`).
+Requisitos:
+
+- Google Chrome instalado no sistema (`channel: chrome` no Playwright)
+- Porta **3002** livre (o Playwright sobe `pnpm dev` automaticamente)
+
+Resultado esperado: **5 passando**, **1 pulado** (cenário mobile-only no projeto desktop).
 
 ### Storybook
 
@@ -474,6 +530,59 @@ make db-backup    # Backup do SQLite
 make db-restore   # Restaurar backup mais recente
 make clean        # Limpar storage, dist e caches
 ```
+
+---
+
+## Solução de problemas
+
+### `make install` falha ao criar o venv
+
+**Sintoma:** `ensurepip is not available`
+
+**Solução:**
+
+```bash
+sudo apt install -y python3-venv   # ou python3.12-venv / python3.14-venv
+make install
+```
+
+O Makefile também tenta automaticamente `venv --without-pip` + bootstrap do pip.
+
+### Chat retorna erro de IA logo após clonar
+
+**Causa comum:** `CHAT_GATEWAY=auto` com chaves placeholder ou inválidas.
+
+**Solução:** use `CHAT_GATEWAY=local` no `.env` (já é o default do `.env.example`).
+
+### Porta 5000 ou 3002 em uso
+
+**Sintoma:** `Address already in use` ou Docker `Bind for 0.0.0.0:5000 failed`
+
+**Solução:**
+
+```bash
+ss -tlnp | grep -E ':5000|:3002'
+make docker-down    # se houver containers antigos
+# pare o processo listado ou encerre outra instância do projeto
+```
+
+### `pnpm: command not found`
+
+```bash
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+### Frontend sem resposta da API
+
+Confirme que o backend está no ar e que o proxy aponta para a porta correta:
+
+- Backend: http://localhost:5000/api/v1/health
+- Dev local: Vite faz proxy de `/api` → `http://localhost:5000`
+
+### Testes E2E falham
+
+Instale o Google Chrome. Se a porta 3002 estiver ocupada, libere-a antes de rodar `pnpm test:e2e`.
 
 ---
 
