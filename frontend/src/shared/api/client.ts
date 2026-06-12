@@ -73,6 +73,18 @@ export function createSession(title = 'Nova conversa') {
   })
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const message = payload?.error?.message ?? 'Falha ao excluir a conversa.'
+    throw new Error(message)
+  }
+}
+
 export function listMessages(sessionId: string) {
   return request<ChatMessage[]>(`/chat/sessions/${sessionId}/messages`)
 }
