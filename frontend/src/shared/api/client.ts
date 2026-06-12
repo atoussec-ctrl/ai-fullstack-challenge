@@ -36,7 +36,9 @@ export function listSessions() {
   return request<ChatSession[]>('/chat/sessions')
 }
 
-export function listBooks(filters: { q?: string; title?: string; author?: string } = {}) {
+export function listBooks(
+  filters: { q?: string; title?: string; author?: string; category?: string } = {},
+) {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(filters)) {
     if (value?.trim()) {

@@ -5,10 +5,14 @@ import {
   Bot,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FileAudio,
   FileCode2,
   FileText,
+  GalleryHorizontal,
   ImageIcon,
+  LayoutGrid,
   Menu,
   Mic,
   Moon,
@@ -83,6 +87,8 @@ const SUGGESTIONS = [
 
 const AssistantMarkdown = lazy(() => import('@/features/chat/AssistantMarkdown'))
 
+type AppView = 'chat' | 'books' | 'settings'
+
 function App() {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -97,7 +103,7 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('mindsight-theme') as 'light' | 'dark') ?? 'light'
   })
-  const [activeView, setActiveView] = useState<'chat' | 'books'>('chat')
+  const [activeView, setActiveView] = useState<AppView>('chat')
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const pendingAttachmentsRef = useRef<PendingAttachment[]>([])
@@ -267,6 +273,14 @@ function App() {
         setActiveView('books')
         setMobileSidebarOpen(false)
       }}
+      onOpenAssistant={() => {
+        setActiveView('chat')
+        setMobileSidebarOpen(false)
+      }}
+      onOpenSettings={() => {
+        setActiveView('settings')
+        setMobileSidebarOpen(false)
+      }}
       onSelectSession={sessionId => {
         setActiveView('chat')
         setSelectedSessionId(sessionId)
@@ -310,7 +324,9 @@ function App() {
             title={
               activeView === 'books'
                 ? 'Biblioteca de livros'
-                : selectedSession?.title ?? 'MindSight AI'
+                : activeView === 'settings'
+                  ? 'Configurações'
+                  : selectedSession?.title ?? 'MindSight AI'
             }
             model={model}
             thinkingMode={thinkingMode}
@@ -326,6 +342,15 @@ function App() {
               actionError={uiError}
               isAskingBook={askBookMutation.isPending}
               onAskBook={book => askBookMutation.mutate(book)}
+            />
+          ) : activeView === 'settings' ? (
+            <SettingsView
+              theme={theme}
+              model={model}
+              thinkingMode={thinkingMode}
+              onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              onModelChange={setModel}
+              onThinkingChange={setThinkingMode}
             />
           ) : (
             <section className="relative min-h-0 flex-1">
@@ -378,10 +403,12 @@ interface ChatSidebarProps {
   sessions: ChatSession[]
   groupedSessions: Array<{ label: string; items: ChatSession[] }>
   selectedSessionId: string | null
-  activeView: 'chat' | 'books'
+  activeView: AppView
   isLoading: boolean
   onNewChat: () => void
   onOpenBooks: () => void
+  onOpenAssistant: () => void
+  onOpenSettings: () => void
   onSelectSession: (sessionId: string) => void
 }
 
@@ -392,6 +419,8 @@ function ChatSidebar({
   isLoading,
   onNewChat,
   onOpenBooks,
+  onOpenAssistant,
+  onOpenSettings,
   onSelectSession,
 }: ChatSidebarProps) {
   return (
@@ -417,8 +446,18 @@ function ChatSidebar({
           label="Biblioteca"
           onClick={onOpenBooks}
         />
-        <SidebarButton icon={<Sparkles size={18} />} label="Python Assistant" />
-        <SidebarButton icon={<Settings2 size={18} />} label="Configurações" />
+        <SidebarButton
+          active={activeView === 'chat'}
+          icon={<Sparkles size={18} />}
+          label="Python Assistant"
+          onClick={onOpenAssistant}
+        />
+        <SidebarButton
+          active={activeView === 'settings'}
+          icon={<Settings2 size={18} />}
+          label="Configurações"
+          onClick={onOpenSettings}
+        />
       </div>
 
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto px-3">
@@ -494,6 +533,100 @@ function SidebarButton({
   )
 }
 
+function SettingsView({
+  theme,
+  model,
+  thinkingMode,
+  onThemeToggle,
+  onModelChange,
+  onThinkingChange,
+}: {
+  theme: 'light' | 'dark'
+  model: (typeof MODEL_OPTIONS)[number]
+  thinkingMode: ThinkingMode
+  onThemeToggle: () => void
+  onModelChange: (model: (typeof MODEL_OPTIONS)[number]) => void
+  onThinkingChange: (mode: ThinkingMode) => void
+}) {
+  return (
+    <section className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+      <div className="mx-auto w-full max-w-2xl space-y-4">
+        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Aparência</h2>
+          <div className="mt-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Tema</p>
+              <p className="text-xs text-muted-foreground">
+                Alterna entre claro e escuro. A preferência fica salva neste navegador.
+              </p>
+            </div>
+            <Button variant="soft" aria-label="Alternar tema nas configurações" onClick={onThemeToggle}>
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? 'Claro' : 'Escuro'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Assistente</h2>
+          <label className="mt-4 block">
+            <span className="mb-1 block text-sm font-medium">Modelo padrão</span>
+            <select
+              aria-label="Modelo padrão"
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              value={model}
+              onChange={event =>
+                onModelChange(event.target.value as (typeof MODEL_OPTIONS)[number])
+              }
+            >
+              {MODEL_OPTIONS.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mt-4 block">
+            <span className="mb-1 block text-sm font-medium">Modo de raciocínio</span>
+            <select
+              aria-label="Modo de raciocínio padrão"
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              value={thinkingMode}
+              onChange={event => onThinkingChange(event.target.value as ThinkingMode)}
+            >
+              {THINKING_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label} — {option.detail}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Sobre</h2>
+          <dl className="mt-3 space-y-2 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Aplicação</dt>
+              <dd className="font-medium">
+                {import.meta.env.VITE_APP_NAME ?? 'MindSight AI'}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">API</dt>
+              <dd className="truncate font-mono text-xs">
+                {import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1'}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+type BooksLayout = 'grid' | 'carousel'
+
 function BooksAdminView({
   actionError,
   isAskingBook,
@@ -505,7 +638,11 @@ function BooksAdminView({
 }) {
   const queryClient = useQueryClient()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const carouselRef = useRef<HTMLDivElement | null>(null)
   const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [authorFilter, setAuthorFilter] = useState('')
+  const [layout, setLayout] = useState<BooksLayout>('grid')
   const [form, setForm] = useState<CreateBookInput>({
     title: '',
     category: 'Programação',
@@ -517,9 +654,29 @@ function BooksAdminView({
   const [error, setError] = useState<string | null>(null)
 
   const booksQuery = useQuery({
-    queryKey: ['books', search],
-    queryFn: () => listBooks({ q: search }),
+    queryKey: ['books', search, categoryFilter, authorFilter],
+    queryFn: () =>
+      listBooks({ q: search, category: categoryFilter, author: authorFilter }),
   })
+
+  // Catálogo completo apenas para montar as opções dos filtros.
+  const allBooksQuery = useQuery({
+    queryKey: ['books', 'all'],
+    queryFn: () => listBooks(),
+  })
+  const filterOptions = useMemo(() => {
+    const catalog = allBooksQuery.data ?? []
+    return {
+      categories: [...new Set(catalog.map(book => book.category))].sort(),
+      authors: [...new Set(catalog.map(book => book.author))].sort(),
+    }
+  }, [allBooksQuery.data])
+
+  function scrollCarousel(direction: 1 | -1) {
+    const node = carouselRef.current
+    if (!node) return
+    node.scrollBy({ left: direction * node.clientWidth * 0.9, behavior: 'smooth' })
+  }
 
   const createBookMutation = useMutation({
     mutationFn: createBook,
@@ -715,22 +872,121 @@ function BooksAdminView({
             </label>
           </div>
 
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Filtrar por categoria"
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              value={categoryFilter}
+              onChange={event => setCategoryFilter(event.target.value)}
+            >
+              <option value="">Todas as categorias</option>
+              {filterOptions.categories.map(category => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Filtrar por autor"
+              className="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              value={authorFilter}
+              onChange={event => setAuthorFilter(event.target.value)}
+            >
+              <option value="">Todos os autores</option>
+              {filterOptions.authors.map(author => (
+                <option key={author} value={author}>
+                  {author}
+                </option>
+              ))}
+            </select>
+            {(categoryFilter || authorFilter || search) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch('')
+                  setCategoryFilter('')
+                  setAuthorFilter('')
+                }}
+              >
+                <X size={14} />
+                Limpar filtros
+              </Button>
+            )}
+            <div className="ml-auto flex items-center gap-1 rounded-md border border-border p-0.5">
+              <Button
+                variant={layout === 'grid' ? 'soft' : 'ghost'}
+                size="icon"
+                aria-label="Layout em grade"
+                onClick={() => setLayout('grid')}
+              >
+                <LayoutGrid size={16} />
+              </Button>
+              <Button
+                variant={layout === 'carousel' ? 'soft' : 'ghost'}
+                size="icon"
+                aria-label="Layout carrossel"
+                onClick={() => setLayout('carousel')}
+              >
+                <GalleryHorizontal size={16} />
+              </Button>
+            </div>
+          </div>
+
           {booksQuery.isLoading ? (
-            <div className="space-y-3">
-              <div className="h-28 rounded-lg bg-secondary animate-shimmer" />
-              <div className="h-28 rounded-lg bg-secondary animate-shimmer" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="h-56 rounded-lg bg-secondary animate-shimmer" />
+              <div className="h-56 rounded-lg bg-secondary animate-shimmer" />
             </div>
           ) : books.length > 0 ? (
-            <div className="grid gap-3">
-              {books.map(book => (
-                <BookCard
-                  key={book.id}
-                  book={book}
-                  isAskingBook={isAskingBook}
-                  onAskBook={() => onAskBook(book)}
-                />
-              ))}
-            </div>
+            layout === 'grid' ? (
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                {books.map(book => (
+                  <BookCard
+                    key={book.id}
+                    book={book}
+                    isAskingBook={isAskingBook}
+                    onAskBook={() => onAskBook(book)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="relative">
+                <div
+                  ref={carouselRef}
+                  aria-label="Carrossel de livros"
+                  className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-3"
+                >
+                  {books.map(book => (
+                    <div key={book.id} className="w-[290px] shrink-0 snap-start sm:w-[320px]">
+                      <BookCard
+                        book={book}
+                        isAskingBook={isAskingBook}
+                        onAskBook={() => onAskBook(book)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-1 flex justify-end gap-2">
+                  <Button
+                    variant="soft"
+                    size="icon"
+                    aria-label="Livros anteriores"
+                    onClick={() => scrollCarousel(-1)}
+                  >
+                    <ChevronLeft size={17} />
+                  </Button>
+                  <Button
+                    variant="soft"
+                    size="icon"
+                    aria-label="Próximos livros"
+                    onClick={() => scrollCarousel(1)}
+                  >
+                    <ChevronRight size={17} />
+                  </Button>
+                </div>
+              </div>
+            )
           ) : (
             <div className="rounded-lg border border-dashed border-border p-8 text-center">
               <BookOpen className="mx-auto mb-3 text-muted-foreground" size={28} />
@@ -756,33 +1012,31 @@ function BookCard({
   onAskBook: () => void
 }) {
   return (
-    <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold">{book.title}</h3>
-          <div className="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <UserRound size={15} />
-              {book.author}
-            </span>
-            <span>{book.category}</span>
-            <span className="inline-flex items-center gap-1">
-              <Calendar size={15} />
-              {book.publication_year}
-            </span>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{book.summary}</p>
-        </div>
-        <Button
-          className="md:w-[170px]"
-          disabled={isAskingBook}
-          variant="soft"
-          onClick={onAskBook}
-        >
-          <Sparkles size={16} />
-          Perguntar à IA
-        </Button>
+    <article className="flex h-full flex-col rounded-lg border border-border bg-card p-4 shadow-sm transition hover:shadow-md">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Badge>{book.category}</Badge>
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Calendar size={13} />
+          {book.publication_year}
+        </span>
       </div>
+      <h3 className="text-base font-semibold leading-snug">{book.title}</h3>
+      <p className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground">
+        <UserRound size={14} />
+        {book.author}
+      </p>
+      <p className="mt-2 line-clamp-4 flex-1 text-sm leading-6 text-muted-foreground">
+        {book.summary}
+      </p>
+      <Button
+        className="mt-4 w-full"
+        disabled={isAskingBook}
+        variant="soft"
+        onClick={onAskBook}
+      >
+        <Sparkles size={16} />
+        Perguntar à IA
+      </Button>
     </article>
   )
 }

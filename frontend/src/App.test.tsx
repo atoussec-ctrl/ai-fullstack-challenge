@@ -48,6 +48,85 @@ it('renders the book administration screen', async () => {
   expect(screen.getByLabelText('Buscar livros')).toBeInTheDocument()
 })
 
+it('opens the settings screen with theme, model and thinking controls', async () => {
+  renderApp()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurações' }))
+
+  expect(await screen.findByText('Aparência')).toBeInTheDocument()
+  expect(screen.getByLabelText('Modelo padrão')).toHaveValue(
+    'deepseek-ai/DeepSeek-V4-Flash',
+  )
+  expect(screen.getByLabelText('Modo de raciocínio padrão')).toBeInTheDocument()
+  expect(screen.getByLabelText('Alternar tema nas configurações')).toBeInTheDocument()
+})
+
+it('navigates back to chat through the Python Assistant tab', async () => {
+  renderApp()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Biblioteca' }))
+  expect(await screen.findByText('Administração')).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Python Assistant' }))
+  expect(await screen.findByPlaceholderText('Pergunte alguma coisa')).toBeInTheDocument()
+})
+
+it('filters books by category and switches to carousel layout', async () => {
+  const books = [
+    {
+      id: 'book_1',
+      title: 'Python Fluente',
+      category: 'Programação',
+      author: 'Luciano Ramalho',
+      publication_date: '2015-01-01',
+      publication_year: 2015,
+      summary: 'Python idiomático.',
+    },
+    {
+      id: 'book_2',
+      title: 'Dom Casmurro',
+      category: 'Romance',
+      author: 'Machado de Assis',
+      publication_date: '1899-01-01',
+      publication_year: 1899,
+      summary: 'Bentinho e Capitu.',
+    },
+  ]
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      if (url.includes('/books')) {
+        const params = new URL(url).searchParams
+        const category = params.get('category')
+        return Response.json(
+          category ? books.filter(book => book.category === category) : books,
+        )
+      }
+      return Response.json([])
+    }),
+  )
+
+  renderApp()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Biblioteca' }))
+  expect(await screen.findByText('Python Fluente')).toBeInTheDocument()
+  expect(screen.getByText('Dom Casmurro')).toBeInTheDocument()
+
+  fireEvent.change(screen.getByLabelText('Filtrar por categoria'), {
+    target: { value: 'Romance' },
+  })
+
+  expect(await screen.findByText('Dom Casmurro')).toBeInTheDocument()
+  await waitFor(() =>
+    expect(screen.queryByText('Python Fluente')).not.toBeInTheDocument(),
+  )
+
+  fireEvent.click(screen.getByLabelText('Layout carrossel'))
+  expect(screen.getByLabelText('Carrossel de livros')).toBeInTheDocument()
+  expect(screen.getByLabelText('Próximos livros')).toBeInTheDocument()
+})
+
 it('reuses the same session when a failed send is retried', async () => {
   let createSessionCalls = 0
   let messageAttempts = 0
