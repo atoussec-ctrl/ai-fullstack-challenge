@@ -60,11 +60,15 @@ def record_feedback(
     except ImportError:
         return {"recorded": False, "reason": "LangSmith package is not installed."}
 
-    client = Client()
-    feedback = client.create_feedback(
-        run_id=run_id,
-        key=key,
-        score=score,
-        comment=comment,
-    )
+    try:
+        client = Client()
+        feedback = client.create_feedback(
+            run_id=run_id,
+            key=key,
+            score=score,
+            comment=comment,
+        )
+    except Exception as exc:
+        # Chave inválida/403, rede fora etc. não podem derrubar o endpoint.
+        return {"recorded": False, "reason": f"Falha ao enviar ao LangSmith: {exc}"}
     return {"recorded": True, "feedback_id": str(feedback.id)}
