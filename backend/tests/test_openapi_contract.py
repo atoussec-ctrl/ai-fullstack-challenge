@@ -11,6 +11,7 @@ def test_openapi_documents_all_public_routes(client):
         "/api/v1/books/import",
         "/api/v1/books/{book_id}",
         "/api/v1/chat/sessions",
+        "/api/v1/chat/sessions/{session_id}",
         "/api/v1/chat/sessions/{session_id}/messages",
         "/api/v1/chat/messages",
         "/api/v1/chat/messages/{assistant_message_id}/stream",

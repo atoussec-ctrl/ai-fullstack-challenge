@@ -28,6 +28,15 @@ def create_session():
     return jsonify(session.to_dict()), 201
 
 
+@chat_bp.delete("/chat/sessions/<session_id>")
+def delete_session(session_id: str):
+    try:
+        ChatService().delete_session(session_id)
+    except ValueError as exc:
+        return error_response("NOT_FOUND", str(exc), 404)
+    return "", 204
+
+
 @chat_bp.get("/chat/sessions/<session_id>/messages")
 def list_messages(session_id: str):
     repository = ChatRepository()

@@ -120,6 +120,17 @@ def paths() -> dict[str, object]:
                 "responses": {"201": json_response("ChatSession")},
             },
         },
+        "/api/v1/chat/sessions/{session_id}": {
+            "delete": {
+                "tags": ["Chat"],
+                "summary": "Delete a chat session and its messages",
+                "parameters": [path_param("session_id", "Chat session id")],
+                "responses": {
+                    "204": {"description": "Session deleted"},
+                    "404": json_response("ErrorResponse"),
+                },
+            }
+        },
         "/api/v1/chat/sessions/{session_id}/messages": {
             "get": {
                 "tags": ["Chat"],

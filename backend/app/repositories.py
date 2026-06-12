@@ -131,6 +131,14 @@ class ChatRepository:
         db.session.commit()
         return session
 
+    def delete_session(self, session_id: str) -> bool:
+        session = self.get_session(session_id)
+        if not session:
+            return False
+        db.session.delete(session)
+        db.session.commit()
+        return True
+
     def list_messages(self, session_id: str) -> list[ChatMessage]:
         return (
             ChatMessage.query.filter_by(session_id=session_id)

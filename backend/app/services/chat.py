@@ -310,6 +310,10 @@ class ChatService:
     def create_session(self, title: str = "Nova conversa"):
         return self.repository.create_session(title)
 
+    def delete_session(self, session_id: str) -> None:
+        if not self.repository.delete_session(session_id):
+            raise ValueError("Sessão de chat não encontrada.")
+
     @traceable_if_enabled("chat.ask", run_type="chain")
     def ask(
         self,
