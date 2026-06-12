@@ -129,7 +129,17 @@ def paths() -> dict[str, object]:
                     "204": {"description": "Session deleted"},
                     "404": json_response("ErrorResponse"),
                 },
-            }
+            },
+            "patch": {
+                "tags": ["Chat"],
+                "summary": "Update chat session metadata",
+                "parameters": [path_param("session_id", "Chat session id")],
+                "requestBody": json_body("UpdateChatSessionRequest"),
+                "responses": {
+                    "200": json_response("ChatSession"),
+                    "404": json_response("ErrorResponse"),
+                },
+            },
         },
         "/api/v1/chat/sessions/{session_id}/messages": {
             "get": {
@@ -281,11 +291,14 @@ def components() -> dict[str, object]:
                 {
                     "id": string(),
                     "title": string(),
+                    "pinned": {"type": "boolean"},
+                    "pinned_at": string("date-time"),
                     "created_at": string("date-time"),
                     "updated_at": string("date-time"),
                 }
             ),
             "CreateChatSessionRequest": object_schema({"title": string()}, required=[]),
+            "UpdateChatSessionRequest": object_schema({"pinned": {"type": "boolean"}}, required=["pinned"]),
             "Attachment": object_schema(
                 {
                     "id": string(),

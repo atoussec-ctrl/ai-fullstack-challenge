@@ -125,3 +125,13 @@ def _ensure_sqlite_schema(app: Flask) -> None:
         if message_columns and "trace_id" not in message_columns:
             connection.exec_driver_sql("ALTER TABLE chat_messages ADD COLUMN trace_id VARCHAR(128)")
             connection.commit()
+        session_columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(chat_sessions)").fetchall()
+        }
+        if session_columns and "pinned" not in session_columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE chat_sessions ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0"
+            )
+            connection.exec_driver_sql("ALTER TABLE chat_sessions ADD COLUMN pinned_at DATETIME")
+            connection.commit()

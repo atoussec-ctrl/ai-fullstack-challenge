@@ -314,6 +314,12 @@ class ChatService:
         if not self.repository.delete_session(session_id):
             raise ValueError("Sessão de chat não encontrada.")
 
+    def update_session(self, session_id: str, *, pinned: bool) -> object:
+        session = self.repository.update_session(session_id, pinned=pinned)
+        if not session:
+            raise ValueError("Sessão de chat não encontrada.")
+        return session
+
     @traceable_if_enabled("chat.ask", run_type="chain")
     def ask(
         self,

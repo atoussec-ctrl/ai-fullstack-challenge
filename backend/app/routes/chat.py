@@ -37,6 +37,21 @@ def delete_session(session_id: str):
     return "", 204
 
 
+@chat_bp.patch("/chat/sessions/<session_id>")
+def update_session(session_id: str):
+    payload = request.get_json(silent=True) or {}
+    if "pinned" not in payload:
+        return validation_error("Campo pinned é obrigatório.", "pinned")
+    if not isinstance(payload["pinned"], bool):
+        return validation_error("Campo pinned deve ser booleano.", "pinned")
+
+    try:
+        session = ChatService().update_session(session_id, pinned=payload["pinned"])
+    except ValueError as exc:
+        return error_response("NOT_FOUND", str(exc), 404)
+    return jsonify(session.to_dict())
+
+
 @chat_bp.get("/chat/sessions/<session_id>/messages")
 def list_messages(session_id: str):
     repository = ChatRepository()

@@ -54,6 +54,8 @@ class ChatSession(db.Model):
 
     id = db.Column(db.String(96), primary_key=True, default=lambda: generate_id("session"))
     title = db.Column(db.String(255), nullable=False, default="Nova conversa")
+    pinned = db.Column(db.Boolean, nullable=False, default=False)
+    pinned_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=utc_now, onupdate=utc_now)
 
@@ -69,10 +71,12 @@ class ChatSession(db.Model):
         cascade="all, delete-orphan",
     )
 
-    def to_dict(self) -> dict[str, str | None]:
+    def to_dict(self) -> dict[str, str | bool | None]:
         return {
             "id": self.id,
             "title": self.title,
+            "pinned": self.pinned,
+            "pinned_at": isoformat(self.pinned_at) if self.pinned_at else None,
             "created_at": isoformat(self.created_at),
             "updated_at": isoformat(self.updated_at),
         }

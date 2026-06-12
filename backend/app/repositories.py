@@ -120,7 +120,13 @@ def score_book(book: Book, terms: list[str]) -> int:
 
 class ChatRepository:
     def list_sessions(self) -> list[ChatSession]:
-        return ChatSession.query.order_by(ChatSession.updated_at.desc()).all()
+        return (
+            ChatSession.query.order_by(
+                ChatSession.pinned.desc(),
+                ChatSession.pinned_at.desc(),
+                ChatSession.updated_at.desc(),
+            ).all()
+        )
 
     def get_session(self, session_id: str) -> ChatSession | None:
         return db.session.get(ChatSession, session_id)
@@ -138,6 +144,21 @@ class ChatRepository:
         db.session.delete(session)
         db.session.commit()
         return True
+
+    def update_session(
+        self,
+        session_id: str,
+        *,
+        pinned: bool | None = None,
+    ) -> ChatSession | None:
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        if pinned is not None:
+            session.pinned = pinned
+            session.pinned_at = utc_now() if pinned else None
+        db.session.commit()
+        return session
 
     def list_messages(self, session_id: str) -> list[ChatMessage]:
         return (
