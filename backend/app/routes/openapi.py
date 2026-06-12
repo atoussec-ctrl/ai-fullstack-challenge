@@ -446,11 +446,7 @@ def json_response(schema_name: str) -> dict[str, object]:
 def array_response(schema_name: str) -> dict[str, object]:
     return {
         "description": "JSON array response",
-        "content": {
-            "application/json": {
-                "schema": {"type": "array", "items": ref(schema_name)}
-            }
-        },
+        "content": {"application/json": {"schema": {"type": "array", "items": ref(schema_name)}}},
     }
 
 

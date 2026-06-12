@@ -120,13 +120,11 @@ def score_book(book: Book, terms: list[str]) -> int:
 
 class ChatRepository:
     def list_sessions(self) -> list[ChatSession]:
-        return (
-            ChatSession.query.order_by(
-                ChatSession.pinned.desc(),
-                ChatSession.pinned_at.desc(),
-                ChatSession.updated_at.desc(),
-            ).all()
-        )
+        return ChatSession.query.order_by(
+            ChatSession.pinned.desc(),
+            ChatSession.pinned_at.desc(),
+            ChatSession.updated_at.desc(),
+        ).all()
 
     def get_session(self, session_id: str) -> ChatSession | None:
         return db.session.get(ChatSession, session_id)

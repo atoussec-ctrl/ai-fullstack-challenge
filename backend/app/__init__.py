@@ -110,8 +110,7 @@ def _ensure_sqlite_schema(app: Flask) -> None:
         return
     with db.engine.connect() as connection:
         columns = {
-            row[1]
-            for row in connection.exec_driver_sql("PRAGMA table_info(books)").fetchall()
+            row[1] for row in connection.exec_driver_sql("PRAGMA table_info(books)").fetchall()
         }
         if columns and "category" not in columns:
             connection.exec_driver_sql(

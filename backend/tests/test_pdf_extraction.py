@@ -35,11 +35,7 @@ def _handcrafted_pdf(lines: list[str]) -> bytes:
         b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
     )
     objects.append(
-        b"<< /Length "
-        + str(len(stream)).encode()
-        + b" >>\nstream\n"
-        + stream
-        + b"\nendstream"
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream"
     )
     objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
 

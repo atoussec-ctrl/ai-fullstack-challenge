@@ -41,9 +41,9 @@ class BookMetadataExtractor:
         author = value_from_payload(payload, "author", "autor", "autora") or regex_value(
             content, r"(?:autor(?:a)?|author)\s*[:\-]\s*(.+)"
         )
-        category = value_from_payload(
-            payload, "category", "categoria"
-        ) or regex_value(content, r"(?:categoria|category)\s*[:\-]\s*(.+)")
+        category = value_from_payload(payload, "category", "categoria") or regex_value(
+            content, r"(?:categoria|category)\s*[:\-]\s*(.+)"
+        )
         year_value = (
             value_from_payload(payload, "publication_year", "year", "ano")
             or regex_value(content, r"(?:ano|year|publica[cç][aã]o|publication)\D+(\d{4})")
@@ -119,9 +119,7 @@ def extract_pdf_text(raw: bytes) -> str:
     try:
         from pypdf import PdfReader
     except ImportError as exc:  # pragma: no cover - depends on optional package
-        raise RuntimeError(
-            "Dependência pypdf não instalada para leitura de PDF."
-        ) from exc
+        raise RuntimeError("Dependência pypdf não instalada para leitura de PDF.") from exc
 
     try:
         reader = PdfReader(BytesIO(raw))

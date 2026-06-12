@@ -49,13 +49,9 @@ class Config:
     LANGSMITH_PROJECT: str = os.getenv("LANGSMITH_PROJECT", "mindsight-ai")
 
     # Embeddings / Vector Store
-    EMBEDDING_MODEL: str = os.getenv(
-        "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
-    )
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     VECTOR_STORE: str = os.getenv("VECTOR_STORE", "faiss")
-    FAISS_INDEX_PATH: str = os.getenv(
-        "FAISS_INDEX_PATH", str(BASE_DIR / "storage" / "faiss.index")
-    )
+    FAISS_INDEX_PATH: str = os.getenv("FAISS_INDEX_PATH", str(BASE_DIR / "storage" / "faiss.index"))
 
     # Uploads
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", str(BASE_DIR / "storage" / "uploads"))

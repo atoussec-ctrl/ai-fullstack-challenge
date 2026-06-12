@@ -28,8 +28,7 @@ DEFAULT_BOOKS: list[dict[str, object]] = [
         "category": "Arquitetura de Software",
         "publication_year": 2017,
         "summary": (
-            "Regras de dependência, fronteiras e camadas para sistemas "
-            "sustentáveis e testáveis."
+            "Regras de dependência, fronteiras e camadas para sistemas sustentáveis e testáveis."
         ),
     },
     {
@@ -37,10 +36,7 @@ DEFAULT_BOOKS: list[dict[str, object]] = [
         "author": "Luciano Ramalho",
         "category": "Programação",
         "publication_year": 2015,
-        "summary": (
-            "Uso idiomático de Python: data model, iteradores, decorators e "
-            "concorrência."
-        ),
+        "summary": ("Uso idiomático de Python: data model, iteradores, decorators e concorrência."),
     },
     {
         "title": "Refactoring",
@@ -48,8 +44,7 @@ DEFAULT_BOOKS: list[dict[str, object]] = [
         "category": "Engenharia de Software",
         "publication_year": 2018,
         "summary": (
-            "Catálogo de refatorações para melhorar o design de código existente "
-            "com segurança."
+            "Catálogo de refatorações para melhorar o design de código existente com segurança."
         ),
     },
     {
@@ -84,8 +79,7 @@ def seed_books(
     catalog = DEFAULT_BOOKS if books is None else books
 
     existing = {
-        (book.title.strip().lower(), book.author.strip().lower())
-        for book in service.search()
+        (book.title.strip().lower(), book.author.strip().lower()) for book in service.search()
     }
 
     created = 0

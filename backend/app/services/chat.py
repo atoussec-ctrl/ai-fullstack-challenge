@@ -122,17 +122,14 @@ class LocalPythonAssistantGateway(ChatCompletionGateway):
                 "nesses campos, eu vou sinalizar a limitação em vez de inventar."
             )
         if sections:
-            return (
-                "\n\n".join(sections)
-                + f"\n\nModo de resposta: {thinking_mode}. {mode_hint}"
-            )
+            return "\n\n".join(sections) + f"\n\nModo de resposta: {thinking_mode}. {mode_hint}"
         if "lista" in normalized:
             return (
                 "Em Python, uma lista é criada usando colchetes.\n\n"
                 "```python\n"
                 "numbers = [1, 2, 3]\n"
-                "names = [\"Ana\", \"Bruno\", \"Carla\"]\n"
-                "names.append(\"Daniel\")\n"
+                'names = ["Ana", "Bruno", "Carla"]\n'
+                'names.append("Daniel")\n'
                 "print(names[0])\n"
                 "```\n\n"
                 "Listas preservam ordem, aceitam itens repetidos e são mutáveis. "
@@ -194,9 +191,7 @@ class LangChainOpenAIGateway(ChatCompletionGateway):
                 lc_messages.append(HumanMessage(content=content))
         response = llm.invoke(lc_messages)
         content = extract_ai_message_content(response)
-        finish_reason = (getattr(response, "response_metadata", None) or {}).get(
-            "finish_reason"
-        )
+        finish_reason = (getattr(response, "response_metadata", None) or {}).get("finish_reason")
         if finish_reason == "length":
             logger.warning(
                 "Resposta truncada pelo limite de tokens (model=%s, max_tokens=%s)",
@@ -209,9 +204,7 @@ class LangChainOpenAIGateway(ChatCompletionGateway):
 
 def chat_max_output_tokens() -> int:
     """Resolve output token cap from Flask config or env."""
-    raw = _gateway_setting(
-        "CHAT_MAX_OUTPUT_TOKENS", str(DEFAULT_CHAT_MAX_OUTPUT_TOKENS)
-    )
+    raw = _gateway_setting("CHAT_MAX_OUTPUT_TOKENS", str(DEFAULT_CHAT_MAX_OUTPUT_TOKENS))
     try:
         parsed = int(raw)
     except ValueError:
@@ -340,9 +333,7 @@ def build_chat_gateway(model: str | None = None) -> ChatCompletionGateway:
 
     if gateway_mode == "openai" or requested:
         if openai_key:
-            return LangChainOpenAIGateway(
-                model=requested or openai_model, api_key=openai_key
-            )
+            return LangChainOpenAIGateway(model=requested or openai_model, api_key=openai_key)
         if gateway_mode == "openai":
             raise ValueError("OPENAI_API_KEY é obrigatório quando CHAT_GATEWAY=openai.")
 

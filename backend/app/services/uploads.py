@@ -42,9 +42,7 @@ def read_attachment_text(attachment: Attachment) -> str | None:
             raw = Path(attachment.storage_path).read_bytes()
             text = extract_pdf_text(raw)
         elif extension in TEXT_EXTRACTABLE_EXTENSIONS:
-            text = Path(attachment.storage_path).read_text(
-                encoding="utf-8", errors="ignore"
-            )
+            text = Path(attachment.storage_path).read_text(encoding="utf-8", errors="ignore")
         else:
             return None
     except OSError:
