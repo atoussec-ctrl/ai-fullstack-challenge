@@ -5,6 +5,9 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // VITE_BASE_URL is set by the deploy workflow for GitHub Pages (e.g. /AI_PYTHON_TEST_FULLSTACK/)
+  // Falls back to '/' for local development
+  base: process.env.VITE_BASE_URL ?? '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -37,6 +40,8 @@ export default defineConfig({
         'src/test/**',
         'src/**/*.stories.tsx',
         'src/features/chat/useAudioRecorder.ts',
+        // types.ts contains only TypeScript type declarations — no executable code to cover
+        'src/shared/api/types.ts',
       ],
       thresholds: {
         lines: 85,

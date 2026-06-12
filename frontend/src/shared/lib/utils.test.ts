@@ -49,6 +49,19 @@ describe('utils', () => {
     vi.useRealTimers()
   })
 
+  it('assigns sessions to Previous 30 Days bucket', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-12T12:00:00Z'))
+
+    // 15 days ago: older than 7 days but within 30 days
+    const groups = groupSessionsByDate([{ updated_at: '2026-05-28T12:00:00Z' }])
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0].label).toBe('Previous 30 Days')
+
+    vi.useRealTimers()
+  })
+
   it('separates pinned sessions from recent groups', () => {
     const layout = groupSessionsForSidebar([
       {
@@ -66,6 +79,25 @@ describe('utils', () => {
     expect(layout.pinned).toHaveLength(1)
     expect(layout.groups).toHaveLength(1)
     expect(layout.groups[0].items).toHaveLength(1)
+  })
+
+  it('sorts pinned sessions by pinned_at, falling back to updated_at when null', () => {
+    const layout = groupSessionsForSidebar([
+      {
+        updated_at: '2026-06-10T10:00:00Z',
+        pinned: true,
+        pinned_at: null, // falls back to updated_at for sort
+      },
+      {
+        updated_at: '2026-06-12T10:00:00Z',
+        pinned: true,
+        pinned_at: '2026-06-12T08:00:00Z',
+      },
+    ])
+
+    expect(layout.pinned).toHaveLength(2)
+    // Most recently pinned should come first (2026-06-12 > 2026-06-10)
+    expect(layout.pinned[0].updated_at).toBe('2026-06-12T10:00:00Z')
   })
 
   it('truncates long strings', () => {

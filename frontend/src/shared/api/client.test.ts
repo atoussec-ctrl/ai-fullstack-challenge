@@ -4,14 +4,21 @@ import {
   createBook,
   createSession,
   deleteSession,
+  importBook,
   listBooks,
   listMessages,
   listSessions,
+  semanticSearch,
   sendMessage,
   updateSessionPin,
+  uploadAttachment,
 } from './client'
 
 describe('chat session client', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('lists sessions from API', async () => {
     vi.stubGlobal(
       'fetch',
@@ -94,6 +101,19 @@ describe('chat session client', () => {
     )
   })
 
+  it('lists books with no filters (no query string)', async () => {
+    const fetchMock = vi.fn(async () => Response.json([]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await listBooks()
+
+    // URL should end in /books without a ? when no filters provided
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/books$/),
+      expect.any(Object),
+    )
+  })
+
   it('sends a chat message', async () => {
     vi.stubGlobal(
       'fetch',
@@ -142,6 +162,87 @@ describe('chat session client', () => {
     const session = await createSession()
     expect(session.id).toBe('session_new')
   })
+
+  it('imports a book from a PDF file', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        book: {
+          id: 'book_2',
+          title: 'Extracted Title',
+          author: 'AI',
+          category: 'tech',
+          publication_date: '2024-01-01',
+          publication_year: 2024,
+          summary: 'Auto-extracted summary.',
+        },
+        extracted: {
+          title: 'Extracted Title',
+          category: 'tech',
+          author: 'AI',
+          publication_year: 2024,
+          summary: 'Auto-extracted summary.',
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File(['%PDF content'], 'book.pdf', { type: 'application/pdf' })
+    const result = await importBook(file)
+
+    expect(result.book.id).toBe('book_2')
+    // Must be sent as FormData (no Content-Type header override)
+    const callArgs = fetchMock.mock.calls[0][1] as RequestInit
+    expect(callArgs.body).toBeInstanceOf(FormData)
+  })
+
+  it('uploads an attachment with FormData', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        id: 'att_1',
+        filename: 'photo.png',
+        mime_type: 'image/png',
+        size: 1024,
+        kind: 'image',
+        url: '/uploads/photo.png',
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = new File(['img'], 'photo.png', { type: 'image/png' })
+    const attachment = await uploadAttachment('session_1', file, 'image')
+
+    expect(attachment.id).toBe('att_1')
+    expect(attachment.kind).toBe('image')
+
+    // Verify FormData was used (no JSON Content-Type)
+    const callArgs = fetchMock.mock.calls[0][1] as RequestInit
+    expect(callArgs.body).toBeInstanceOf(FormData)
+  })
+
+  it('performs a semantic search', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        results: [
+          {
+            document_id: 'doc_1',
+            title: 'Clean Architecture',
+            score: 0.92,
+            excerpt: 'Dependency inversion principle...',
+          },
+        ],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await semanticSearch('dependency injection', 5)
+
+    expect(result.results).toHaveLength(1)
+    expect(result.results[0].score).toBe(0.92)
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/semantic-search'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
 })
 
 describe('deleteSession', () => {
@@ -171,6 +272,33 @@ describe('deleteSession', () => {
 
     await expect(deleteSession('missing')).rejects.toThrow('Conversa não encontrada.')
   })
+
+  it('uses friendly message when "requested URL was not found" error occurs', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          { error: { message: 'The requested URL was not found on the server.' } },
+          { status: 404 },
+        ),
+      ),
+    )
+
+    await expect(deleteSession('session_1')).rejects.toThrow(
+      'Endpoint da API indisponível',
+    )
+  })
+
+  it('falls back to generic message when response body is not JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Internal Server Error', { status: 500 })),
+    )
+
+    await expect(deleteSession('session_1')).rejects.toThrow(
+      'Falha ao excluir a conversa.',
+    )
+  })
 })
 
 describe('updateSessionPin', () => {
@@ -195,5 +323,21 @@ describe('updateSessionPin', () => {
 
     const session = await updateSessionPin('session_1', true)
     expect(session.pinned).toBe(true)
+  })
+
+  it('throws friendly error when "URL not found" occurs during generic request', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          { error: { message: 'The requested URL was not found on the server.' } },
+          { status: 404 },
+        ),
+      ),
+    )
+
+    await expect(updateSessionPin('session_x', false)).rejects.toThrow(
+      'Endpoint da API indisponível',
+    )
   })
 })
