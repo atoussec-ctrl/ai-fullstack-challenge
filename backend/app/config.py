@@ -33,6 +33,14 @@ class Config:
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     CHAT_GATEWAY: str = os.getenv("CHAT_GATEWAY", "local")
 
+    # Hugging Face Inference Providers (DeepSeek V4 etc.)
+    # Aceita HUGGINGFACE_API_KEY ou HUGGINGFACE_API_TOKEN.
+    HUGGINGFACE_API_KEY: str = os.getenv(
+        "HUGGINGFACE_API_KEY", os.getenv("HUGGINGFACE_API_TOKEN", "")
+    )
+    HF_CHAT_MODEL: str = os.getenv("HF_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash")
+    HF_BASE_URL: str = os.getenv("HF_BASE_URL", "https://router.huggingface.co/v1")
+
     # LangSmith
     LANGSMITH_TRACING: str = os.getenv("LANGSMITH_TRACING", "false")
     LANGSMITH_API_KEY: str = os.getenv("LANGSMITH_API_KEY", "")
@@ -77,6 +85,7 @@ class TestingConfig(Config):
     SQLALCHEMY_DATABASE_URI: str = "sqlite:///:memory:"
     LANGSMITH_TRACING: str = "false"
     OPENAI_API_KEY: str = "test-key"
+    HUGGINGFACE_API_KEY: str = ""
     CHAT_GATEWAY: str = "local"
     UPLOAD_DIR: str = "/tmp/mindsight-test-uploads"
     FAISS_INDEX_PATH: str = "/tmp/mindsight-test-faiss.index"

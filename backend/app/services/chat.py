@@ -23,6 +23,10 @@ GATEWAY_FAILURE_MESSAGE = (
 # Modelos OpenAI de reasoning aceitam reasoning_effort, mas rejeitam temperature.
 REASONING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5")
 
+# Router de Inference Providers do Hugging Face (compatível com a API da OpenAI).
+HF_ROUTER_BASE_URL = "https://router.huggingface.co/v1"
+DEFAULT_HF_CHAT_MODEL = "deepseek-ai/DeepSeek-V4-Flash"
+
 SYSTEM_PROMPT = """Você é um assistente sênior especializado em Python.
 Responda em português.
 Explique passo a passo quando necessário.
@@ -136,11 +140,15 @@ class LocalPythonAssistantGateway(ChatCompletionGateway):
 
 
 class LangChainOpenAIGateway(ChatCompletionGateway):
-    """Optional production gateway. Imported lazily so tests do not require LangChain."""
+    """Gateway for any OpenAI-compatible endpoint (OpenAI, HF router/DeepSeek).
 
-    def __init__(self, model: str, api_key: str) -> None:
+    Imported lazily so tests do not require LangChain.
+    """
+
+    def __init__(self, model: str, api_key: str, base_url: str | None = None) -> None:
         self.model = model
         self.api_key = api_key
+        self.base_url = base_url
 
     @traceable_if_enabled("chat.langchain_openai", run_type="llm")
     def answer(
@@ -160,6 +168,7 @@ class LangChainOpenAIGateway(ChatCompletionGateway):
         llm = ChatOpenAI(
             model=self.model,
             api_key=self.api_key,
+            base_url=self.base_url,
             **chat_model_kwargs(self.model, thinking_mode),
         )
         prompt = build_prompt_messages(
@@ -183,8 +192,12 @@ class LangChainOpenAIGateway(ChatCompletionGateway):
 
 def chat_model_kwargs(model: str, thinking_mode: str) -> dict[str, object]:
     """Build per-model kwargs: reasoning models reject temperature and vice-versa."""
+    normalized = model.lower()
+    if "deepseek" in normalized:
+        # Recomendação oficial do DeepSeek V4; thinking mode vira instrução de prompt.
+        return {"temperature": 1.0}
     mode = THINKING_MODES[thinking_mode]
-    if model.lower().startswith(REASONING_MODEL_PREFIXES):
+    if normalized.startswith(REASONING_MODEL_PREFIXES):
         return {"reasoning_effort": str(mode["reasoning_effort"])}
     return {"temperature": float(mode["temperature"])}
 
@@ -219,27 +232,58 @@ def build_prompt_messages(
     return messages
 
 
-def build_chat_gateway(model: str | None = None) -> ChatCompletionGateway:
+def _gateway_setting(name: str, default: str = "") -> str:
     if has_app_context():
-        gateway_mode = str(current_app.config.get("CHAT_GATEWAY", "local")).lower()
-        api_key = str(current_app.config.get("OPENAI_API_KEY", ""))
-        default_model = str(current_app.config.get("OPENAI_MODEL", "gpt-4.1-mini"))
-    else:
-        import os
+        return str(current_app.config.get(name, default))
+    import os
 
-        gateway_mode = os.getenv("CHAT_GATEWAY", "local").lower()
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        default_model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    return os.getenv(name, default)
 
-    if gateway_mode not in {"local", "auto", "openai"}:
-        raise ValueError("CHAT_GATEWAY deve ser local, auto ou openai.")
+
+def build_chat_gateway(model: str | None = None) -> ChatCompletionGateway:
+    gateway_mode = _gateway_setting("CHAT_GATEWAY", "local").lower()
+    openai_key = _gateway_setting("OPENAI_API_KEY")
+    openai_model = _gateway_setting("OPENAI_MODEL", "gpt-4.1-mini")
+    hf_key = _gateway_setting("HUGGINGFACE_API_KEY")
+    hf_model = _gateway_setting("HF_CHAT_MODEL", DEFAULT_HF_CHAT_MODEL)
+    hf_base_url = _gateway_setting("HF_BASE_URL", HF_ROUTER_BASE_URL)
+
+    if gateway_mode not in {"local", "auto", "openai", "huggingface"}:
+        raise ValueError("CHAT_GATEWAY deve ser local, auto, openai ou huggingface.")
     if gateway_mode == "local":
         return LocalPythonAssistantGateway()
-    if not api_key:
-        if gateway_mode == "auto":
-            return LocalPythonAssistantGateway()
-        raise ValueError("OPENAI_API_KEY é obrigatório quando CHAT_GATEWAY=openai.")
-    return LangChainOpenAIGateway(model=(model or default_model), api_key=api_key)
+
+    requested = (model or "").strip() or None
+    # Modelos namespaced (ex.: deepseek-ai/DeepSeek-V4-Flash) vão pelo router do HF.
+    is_hub_model = bool(requested and "/" in requested)
+
+    if gateway_mode == "huggingface" or is_hub_model:
+        if not hf_key:
+            if gateway_mode == "auto":
+                return LocalPythonAssistantGateway()
+            raise ValueError(
+                "HUGGINGFACE_API_KEY é obrigatório para usar modelos via Hugging Face."
+            )
+        return LangChainOpenAIGateway(
+            model=requested if is_hub_model else hf_model,
+            api_key=hf_key,
+            base_url=hf_base_url,
+        )
+
+    if gateway_mode == "openai" or requested:
+        if openai_key:
+            return LangChainOpenAIGateway(
+                model=requested or openai_model, api_key=openai_key
+            )
+        if gateway_mode == "openai":
+            raise ValueError("OPENAI_API_KEY é obrigatório quando CHAT_GATEWAY=openai.")
+
+    # auto: prioriza Hugging Face (DeepSeek), depois OpenAI, depois local.
+    if hf_key:
+        return LangChainOpenAIGateway(model=hf_model, api_key=hf_key, base_url=hf_base_url)
+    if openai_key:
+        return LangChainOpenAIGateway(model=openai_model, api_key=openai_key)
+    return LocalPythonAssistantGateway()
 
 
 def normalize_thinking_mode(value: str | None) -> str:

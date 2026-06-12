@@ -55,7 +55,14 @@ import type {
 } from '@/shared/api/types'
 import { cn, formatFileSize, formatRelativeTime, groupSessionsByDate } from '@/shared/lib/utils'
 
-const MODEL_OPTIONS = ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5-mini', 'gpt-5'] as const
+const MODEL_OPTIONS = [
+  'deepseek-ai/DeepSeek-V4-Flash',
+  'deepseek-ai/DeepSeek-V4-Pro',
+  'gpt-4.1-mini',
+  'gpt-4.1',
+  'gpt-5-mini',
+  'gpt-5',
+] as const
 
 const THINKING_OPTIONS: Array<{
   value: ThinkingMode
@@ -84,7 +91,9 @@ function App() {
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>(
     (import.meta.env.VITE_DEFAULT_THINKING_MODE as ThinkingMode) ?? 'balanced',
   )
-  const [model, setModel] = useState<(typeof MODEL_OPTIONS)[number]>('gpt-4.1-mini')
+  const [model, setModel] = useState<(typeof MODEL_OPTIONS)[number]>(
+    'deepseek-ai/DeepSeek-V4-Flash',
+  )
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('mindsight-theme') as 'light' | 'dark') ?? 'light'
   })
