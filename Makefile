@@ -19,7 +19,15 @@ install: backend-install
 	@echo "All core dependencies installed"
 
 backend-venv:
-	test -x $(BACKEND_PY) || python3 -m venv $(BACKEND_VENV)
+	@if [ -x $(BACKEND_PY) ]; then \
+		: ; \
+	elif python3 -m venv $(BACKEND_VENV) 2>/dev/null; then \
+		: ; \
+	else \
+		echo "Creating venv without ensurepip (install python3-venv for a simpler setup)..."; \
+		python3 -m venv $(BACKEND_VENV) --without-pip; \
+		curl -fsSL https://bootstrap.pypa.io/get-pip.py | $(BACKEND_PY); \
+	fi
 
 backend-install: backend-venv
 	@echo "Installing backend dependencies into $(BACKEND_VENV)..."
