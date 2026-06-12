@@ -113,11 +113,16 @@ function App() {
         throw new Error('Digite uma pergunta ou anexe um arquivo.')
       }
 
-      const session =
-        selectedSessionId ??
-        (await createSession(
-          content ? content.slice(0, 54) : 'Conversa com anexos',
-        )).id
+      let session = selectedSessionId
+      if (!session) {
+        session = (
+          await createSession(content ? content.slice(0, 54) : 'Conversa com anexos')
+        ).id
+        // Persiste a sessão imediatamente para que um retry após falha de
+        // upload/envio reuse a mesma conversa em vez de criar outra.
+        setSelectedSessionId(session)
+        queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      }
 
       const uploaded = []
       for (const attachment of pendingAttachments) {
