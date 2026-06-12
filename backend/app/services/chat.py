@@ -26,6 +26,12 @@ REASONING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5")
 # Router de Inference Providers do Hugging Face (compatível com a API da OpenAI).
 HF_ROUTER_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_HF_CHAT_MODEL = "deepseek-ai/DeepSeek-V4-Flash"
+DEFAULT_CHAT_MAX_OUTPUT_TOKENS = 4096
+TRUNCATION_NOTICE = (
+    "\n\n---\n\n"
+    "*Resposta interrompida por limite de tokens. "
+    "Aumente `CHAT_MAX_OUTPUT_TOKENS` ou peça para continuar.*"
+)
 
 SYSTEM_PROMPT = """Você é um assistente sênior especializado em Python.
 Responda em português.
@@ -187,19 +193,62 @@ class LangChainOpenAIGateway(ChatCompletionGateway):
             else:
                 lc_messages.append(HumanMessage(content=content))
         response = llm.invoke(lc_messages)
-        return str(response.content)
+        content = extract_ai_message_content(response)
+        finish_reason = (getattr(response, "response_metadata", None) or {}).get(
+            "finish_reason"
+        )
+        if finish_reason == "length":
+            logger.warning(
+                "Resposta truncada pelo limite de tokens (model=%s, max_tokens=%s)",
+                self.model,
+                chat_max_output_tokens(),
+            )
+            content = f"{content.rstrip()}{TRUNCATION_NOTICE}"
+        return content
+
+
+def chat_max_output_tokens() -> int:
+    """Resolve output token cap from Flask config or env."""
+    raw = _gateway_setting(
+        "CHAT_MAX_OUTPUT_TOKENS", str(DEFAULT_CHAT_MAX_OUTPUT_TOKENS)
+    )
+    try:
+        parsed = int(raw)
+    except ValueError:
+        parsed = DEFAULT_CHAT_MAX_OUTPUT_TOKENS
+    return max(256, min(parsed, 128_000))
+
+
+def extract_ai_message_content(response: object) -> str:
+    """Normalize LangChain AIMessage content (str or block list) to plain text."""
+    content = getattr(response, "content", response)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(str(block.get("text", "")))
+        return "".join(parts)
+    return str(content)
 
 
 def chat_model_kwargs(model: str, thinking_mode: str) -> dict[str, object]:
     """Build per-model kwargs: reasoning models reject temperature and vice-versa."""
+    kwargs: dict[str, object] = {"max_tokens": chat_max_output_tokens()}
     normalized = model.lower()
     if "deepseek" in normalized:
         # Recomendação oficial do DeepSeek V4; thinking mode vira instrução de prompt.
-        return {"temperature": 1.0}
+        kwargs["temperature"] = 1.0
+        return kwargs
     mode = THINKING_MODES[thinking_mode]
     if normalized.startswith(REASONING_MODEL_PREFIXES):
-        return {"reasoning_effort": str(mode["reasoning_effort"])}
-    return {"temperature": float(mode["temperature"])}
+        kwargs["reasoning_effort"] = str(mode["reasoning_effort"])
+        return kwargs
+    kwargs["temperature"] = float(mode["temperature"])
+    return kwargs
 
 
 def build_prompt_messages(
@@ -240,11 +289,30 @@ def _gateway_setting(name: str, default: str = "") -> str:
     return os.getenv(name, default)
 
 
+def _effective_api_key(value: str) -> str:
+    """Ignore empty values and template placeholders from .env.example."""
+    normalized = value.strip()
+    if not normalized:
+        return ""
+    lowered = normalized.lower()
+    if lowered in {
+        "replace-me",
+        "change-me",
+        "change-me-in-production",
+        "your-api-key",
+        "your-key-here",
+    }:
+        return ""
+    if lowered.startswith("replace-"):
+        return ""
+    return normalized
+
+
 def build_chat_gateway(model: str | None = None) -> ChatCompletionGateway:
     gateway_mode = _gateway_setting("CHAT_GATEWAY", "local").lower()
-    openai_key = _gateway_setting("OPENAI_API_KEY")
+    openai_key = _effective_api_key(_gateway_setting("OPENAI_API_KEY"))
     openai_model = _gateway_setting("OPENAI_MODEL", "gpt-4.1-mini")
-    hf_key = _gateway_setting("HUGGINGFACE_API_KEY")
+    hf_key = _effective_api_key(_gateway_setting("HUGGINGFACE_API_KEY"))
     hf_model = _gateway_setting("HF_CHAT_MODEL", DEFAULT_HF_CHAT_MODEL)
     hf_base_url = _gateway_setting("HF_BASE_URL", HF_ROUTER_BASE_URL)
 

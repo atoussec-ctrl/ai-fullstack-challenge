@@ -32,6 +32,8 @@ class Config:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     CHAT_GATEWAY: str = os.getenv("CHAT_GATEWAY", "local")
+    # Limite de tokens de saída enviado ao provedor (HF usa 1024 se omitido).
+    CHAT_MAX_OUTPUT_TOKENS: int = int(os.getenv("CHAT_MAX_OUTPUT_TOKENS", "4096"))
 
     # Hugging Face Inference Providers (DeepSeek V4 etc.)
     # Aceita HUGGINGFACE_API_KEY ou HUGGINGFACE_API_TOKEN.

@@ -7,7 +7,9 @@ from app.services.chat import (
     LangChainOpenAIGateway,
     LocalPythonAssistantGateway,
     build_chat_gateway,
+    chat_max_output_tokens,
     chat_model_kwargs,
+    extract_ai_message_content,
 )
 
 
@@ -26,14 +28,35 @@ def _set(app, **overrides):
 # ── chat_model_kwargs por família de modelo ──
 
 
-def test_deepseek_kwargs_use_official_recommendation():
-    kwargs = chat_model_kwargs("deepseek-ai/DeepSeek-V4-Flash", "deep")
-    assert kwargs == {"temperature": 1.0}
+def test_deepseek_kwargs_use_official_recommendation(app):
+    with app.app_context():
+        kwargs = chat_model_kwargs("deepseek-ai/DeepSeek-V4-Flash", "deep")
+    assert kwargs == {"max_tokens": 4096, "temperature": 1.0}
 
 
-def test_openai_kwargs_keep_current_behavior():
-    assert chat_model_kwargs("gpt-4.1-mini", "balanced") == {"temperature": 0.3}
-    assert chat_model_kwargs("o3-mini", "deep") == {"reasoning_effort": "high"}
+def test_openai_kwargs_keep_current_behavior(app):
+    with app.app_context():
+        assert chat_model_kwargs("gpt-4.1-mini", "balanced") == {
+            "max_tokens": 4096,
+            "temperature": 0.3,
+        }
+        assert chat_model_kwargs("o3-mini", "deep") == {
+            "max_tokens": 4096,
+            "reasoning_effort": "high",
+        }
+
+
+def test_chat_max_output_tokens_reads_from_config(app):
+    with app.app_context():
+        app.config["CHAT_MAX_OUTPUT_TOKENS"] = 8192
+        assert chat_max_output_tokens() == 8192
+
+
+def test_extract_ai_message_content_supports_block_lists():
+    class FakeResponse:
+        content = [{"type": "text", "text": "Olá "}, {"type": "text", "text": "mundo"}]
+
+    assert extract_ai_message_content(FakeResponse()) == "Olá mundo"
 
 
 # ── Seleção de gateway ──
@@ -62,6 +85,16 @@ def test_auto_prefers_huggingface_over_openai(app):
 def test_auto_without_any_key_falls_back_to_local(app):
     with app.app_context():
         _set(app)
+        assert isinstance(build_chat_gateway(), LocalPythonAssistantGateway)
+
+
+def test_auto_ignores_placeholder_keys_from_env_example(app):
+    with app.app_context():
+        _set(
+            app,
+            OPENAI_API_KEY="replace-me",
+            HUGGINGFACE_API_KEY="replace-me",
+        )
         assert isinstance(build_chat_gateway(), LocalPythonAssistantGateway)
 
 

@@ -173,16 +173,20 @@ def test_gateway_failure_creates_failed_assistant_message(app):
 # ── Montagem de prompt e kwargs do modelo (unitários puros) ──
 
 
-def test_chat_model_kwargs_for_non_reasoning_model():
-    kwargs = chat_model_kwargs("gpt-4.1-mini", "deep")
+def test_chat_model_kwargs_for_non_reasoning_model(app):
+    with app.app_context():
+        kwargs = chat_model_kwargs("gpt-4.1-mini", "deep")
     assert "reasoning_effort" not in kwargs
     assert kwargs["temperature"] == 0.2
+    assert kwargs["max_tokens"] == 4096
 
 
-def test_chat_model_kwargs_for_reasoning_model():
-    kwargs = chat_model_kwargs("o3-mini", "deep")
+def test_chat_model_kwargs_for_reasoning_model(app):
+    with app.app_context():
+        kwargs = chat_model_kwargs("o3-mini", "deep")
     assert kwargs["reasoning_effort"] == "high"
     assert "temperature" not in kwargs
+    assert kwargs["max_tokens"] == 4096
 
 
 def test_build_prompt_messages_includes_history_and_attachments():
