@@ -22,6 +22,7 @@ describe('AssistantMarkdown', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Copiar' }))
     expect(writeText).toHaveBeenCalledWith('const x = 1')
+    expect(await screen.findByRole('button', { name: 'Copiado!' })).toBeInTheDocument()
 
     vi.unstubAllGlobals()
   })

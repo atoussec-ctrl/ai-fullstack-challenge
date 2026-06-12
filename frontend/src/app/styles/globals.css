@@ -189,6 +189,15 @@ body {
   background: transparent;
 }
 
+.prose-chat .assistant-code-block pre {
+  padding: 1.5rem !important;
+}
+
+.prose-chat .assistant-code-block .hljs {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
 .prose-chat blockquote {
   border-left: 3px solid hsl(var(--border));
   padding-left: 1em;
