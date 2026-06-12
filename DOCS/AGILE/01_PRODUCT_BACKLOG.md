@@ -37,6 +37,18 @@ Formato: ID, história, critérios de aceite, labels, prioridade, estimativa (st
 - **Aceite:** `marshmallow` removido (ou adotado na validação); decisão registrada para `@tanstack/react-router`, `zod`, MSW (usar ou remover).
 - Labels: `refactor` · Prioridade: **P2** · Estimativa: **2**
 
+### MS-009 — Seed idempotente + backup/restore do banco
+> **Como** dev, **quero** popular dados de exemplo sem duplicar e ter backup/restore do SQLite, **para** trabalhar e atualizar a UI sem risco de perder dados.
+
+- **Aceite:** `seed_books` idempotente (não recria por título+autor); `python seed.py` / `make seed`; `make db-backup` e `make db-restore`; teste de idempotência e de preservação de dados existentes.
+- Labels: `infra`, `backend` · Prioridade: **P1** · Estimativa: **2** · Status: ✅ concluído
+
+### MS-008 — Migrations versionadas com Flask-Migrate/Alembic
+> **Como** dev, **quero** migrations versionadas, **para** evoluir o schema do SQLite sem `db.create_all()` + `ALTER TABLE` ad-hoc e sem risco de perder dados. (F-32)
+
+- **Aceite:** Flask-Migrate adicionado; baseline migration espelhando o schema atual; `_ensure_sqlite_schema()` aposentado; `make db-migrate` (revision autogenerate) e `make db-upgrade`; testes continuam em SQLite in-memory; documentado o fluxo de upgrade preservando dados.
+- Labels: `infra`, `backend`, `refactor` · Prioridade: **P1** · Estimativa: **5**
+
 ### MS-007 — Corrigir build do Docker Compose (pnpm v11 / esbuild)
 > **Como** dev, **quero** `docker compose up --build` funcionando, **para** subir backend e frontend sem ajustes manuais. (F-31)
 

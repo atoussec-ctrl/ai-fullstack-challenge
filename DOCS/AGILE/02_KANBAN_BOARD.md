@@ -21,6 +21,7 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
+| MS-008 | Migrations versionadas (Flask-Migrate/Alembic) | `infra` `backend` `refactor` | P1 | 5 |
 | MS-006 | Pipeline CI com quality gates | `infra` `testing` | P1 | 5 |
 | MS-103 | Streaming SSE real do LLM | `ai` `feature` `backend` | P1 | 8 |
 | MS-603 | Streaming consumido na UI | `frontend` `feature` | P1 | 5 |
@@ -44,6 +45,7 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 | MS-604 | Retry deixa de duplicar sessões no frontend (F-30) — teste de regressão Vitest | `bug` `frontend` |
 | MS-105 | Extração real de texto de PDF (pypdf) no import e em anexos do chat (F-29) | `bug` `backend` |
 | MS-007 | Build do Docker Compose corrigido (pnpm v11 allowBuilds + COPY do workspace) (F-31) | `bug` `infra` `frontend` |
+| MS-009 | Seed idempotente + backup/restore do SQLite (preserva dados ao atualizar UI) | `infra` `backend` |
 
 ### ✔️ Done — Sprint 1 (2026-06-11)
 
