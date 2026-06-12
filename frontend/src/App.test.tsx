@@ -30,6 +30,17 @@ beforeEach(() => {
   )
 })
 
+it('toggles the mobile sidebar from the header and closes from the drawer icon', async () => {
+  renderApp()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Abrir menu' }))
+  expect(screen.getAllByRole('button', { name: 'Fechar menu' }).length).toBeGreaterThan(0)
+
+  fireEvent.click(screen.getAllByRole('button', { name: 'Fechar menu' }).at(-1)!)
+
+  expect(await screen.findByRole('button', { name: 'Abrir menu' })).toBeInTheDocument()
+})
+
 it('renders the chat shell and composer', async () => {
   renderApp()
 
@@ -125,6 +136,45 @@ it('filters books by category and switches to carousel layout', async () => {
   fireEvent.click(screen.getByLabelText('Layout carrossel'))
   expect(screen.getByLabelText('Carrossel de livros')).toBeInTheDocument()
   expect(screen.getByLabelText('Próximos livros')).toBeInTheDocument()
+})
+
+it('deletes a chat session after double click reveals the trash icon', async () => {
+  let sessions = [
+    {
+      id: 'session_delete',
+      title: 'Conversa para apagar',
+      created_at: '2026-06-12T00:00:00Z',
+      updated_at: '2026-06-12T01:00:00Z',
+    },
+  ]
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (url.includes('/chat/sessions/session_delete') && method === 'DELETE') {
+        sessions = []
+        return new Response(null, { status: 204 })
+      }
+      if (url.includes('/chat/sessions') && method === 'GET') {
+        return Response.json(sessions)
+      }
+      return Response.json([])
+    }),
+  )
+
+  renderApp()
+
+  const title = await screen.findByText('Conversa para apagar')
+  fireEvent.doubleClick(title.closest('.group')!)
+
+  fireEvent.click(
+    await screen.findByLabelText('Excluir conversa Conversa para apagar'),
+  )
+
+  await waitFor(() =>
+    expect(screen.queryByText('Conversa para apagar')).not.toBeInTheDocument(),
+  )
 })
 
 it('reuses the same session when a failed send is retried', async () => {

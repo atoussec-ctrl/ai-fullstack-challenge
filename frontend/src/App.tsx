@@ -38,10 +38,13 @@ import {
   revokePendingAttachment,
   validateFiles,
 } from '@/features/chat/attachments'
+import { ChatSessionRow } from '@/features/chat/ChatSessionRow'
 import { useAudioRecorder } from '@/features/chat/useAudioRecorder'
+import { useSessionDeleteGesture } from '@/features/chat/useSessionDeleteGesture'
 import {
   createBook,
   createSession,
+  deleteSession,
   importBook,
   listBooks,
   listMessages,
@@ -57,7 +60,8 @@ import type {
   CreateBookInput,
   ThinkingMode,
 } from '@/shared/api/types'
-import { cn, formatFileSize, formatRelativeTime, groupSessionsByDate } from '@/shared/lib/utils'
+import { useHandleMobileSideBar } from '@/hooks/useHandleMobileSideBar'
+import { cn, formatFileSize, groupSessionsByDate } from '@/shared/lib/utils'
 
 const MODEL_OPTIONS = [
   'deepseek-ai/DeepSeek-V4-Flash',
@@ -104,7 +108,7 @@ function App() {
     return (localStorage.getItem('mindsight-theme') as 'light' | 'dark') ?? 'light'
   })
   const [activeView, setActiveView] = useState<AppView>('chat')
-  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const mobileSidebar = useHandleMobileSideBar()
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const pendingAttachmentsRef = useRef<PendingAttachment[]>([])
   const [uiError, setUiError] = useState<string | null>(null)
@@ -194,6 +198,22 @@ function App() {
     },
   })
 
+  const deleteSessionMutation = useMutation({
+    mutationFn: deleteSession,
+    onSuccess: (_data, deletedId) => {
+      if (selectedSessionId === deletedId) {
+        setSelectedSessionId(null)
+        setComposerValue('')
+      }
+      setUiError(null)
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      queryClient.removeQueries({ queryKey: ['messages', deletedId] })
+    },
+    onError: error => {
+      setUiError(error instanceof Error ? error.message : 'Falha ao excluir conversa.')
+    },
+  })
+
   const sessions = useMemo(() => sessionsQuery.data ?? [], [sessionsQuery.data])
   const messages = messagesQuery.data ?? []
   const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions])
@@ -266,26 +286,29 @@ function App() {
         setActiveView('chat')
         setSelectedSessionId(null)
         setComposerValue('')
-        setMobileSidebarOpen(false)
+        mobileSidebar.handleClose()
       }}
       activeView={activeView}
+      onCloseSidebar={mobileSidebar.handleClose}
       onOpenBooks={() => {
         setActiveView('books')
-        setMobileSidebarOpen(false)
+        mobileSidebar.handleClose()
       }}
       onOpenAssistant={() => {
         setActiveView('chat')
-        setMobileSidebarOpen(false)
+        mobileSidebar.handleClose()
       }}
       onOpenSettings={() => {
         setActiveView('settings')
-        setMobileSidebarOpen(false)
+        mobileSidebar.handleClose()
       }}
       onSelectSession={sessionId => {
         setActiveView('chat')
         setSelectedSessionId(sessionId)
-        setMobileSidebarOpen(false)
+        mobileSidebar.handleClose()
       }}
+      onDeleteSession={sessionId => deleteSessionMutation.mutateAsync(sessionId)}
+      isDeletingSession={deleteSessionMutation.isPending}
     />
   )
 
@@ -297,13 +320,13 @@ function App() {
         </aside>
 
         <AnimatePresence>
-          {isMobileSidebarOpen && (
+          {mobileSidebar.isOpen && (
             <motion.div
               className="fixed inset-0 z-40 bg-black/45 lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setMobileSidebarOpen(false)}
+              onClick={mobileSidebar.handleClose}
             >
               <motion.aside
                 className="h-full w-[82vw] max-w-[326px] border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
@@ -331,7 +354,8 @@ function App() {
             model={model}
             thinkingMode={thinkingMode}
             theme={theme}
-            onOpenSidebar={() => setMobileSidebarOpen(true)}
+            isMobileSidebarOpen={mobileSidebar.isOpen}
+            onToggleSidebar={mobileSidebar.handleOpen}
             onModelChange={setModel}
             onThinkingChange={setThinkingMode}
             onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -410,6 +434,9 @@ interface ChatSidebarProps {
   onOpenAssistant: () => void
   onOpenSettings: () => void
   onSelectSession: (sessionId: string) => void
+  onCloseSidebar: () => void
+  onDeleteSession: (sessionId: string) => Promise<void>
+  isDeletingSession: boolean
 }
 
 function ChatSidebar({
@@ -422,7 +449,17 @@ function ChatSidebar({
   onOpenAssistant,
   onOpenSettings,
   onSelectSession,
+  onCloseSidebar,
+  onDeleteSession,
+  isDeletingSession,
 }: ChatSidebarProps) {
+  const { armedSessionId, disarmDelete, getRowHandlers } = useSessionDeleteGesture()
+
+  async function handleDelete(sessionId: string) {
+    await onDeleteSession(sessionId)
+    disarmDelete()
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between px-5">
@@ -432,13 +469,26 @@ function ChatSidebar({
           </span>
           MindSight
         </div>
-        <Button variant="ghost" size="icon" aria-label="Recolher sidebar">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          aria-label="Fechar menu"
+          onClick={onCloseSidebar}
+        >
           <PanelLeftClose size={18} />
         </Button>
       </div>
 
       <div className="space-y-1 px-3">
-        <SidebarButton icon={<Plus size={18} />} label="Novo chat" onClick={onNewChat} />
+        <SidebarButton
+          icon={<Plus size={18} />}
+          label="Novo chat"
+          onClick={() => {
+            disarmDelete()
+            onNewChat()
+          }}
+        />
         <SidebarButton icon={<Search size={18} />} label="Buscar chats" />
         <SidebarButton
           active={activeView === 'books'}
@@ -472,21 +522,19 @@ function ChatSidebar({
             <div className="mb-4" key={group.label}>
               <p className="mb-1 px-2 text-xs text-muted-foreground">{group.label}</p>
               {group.items.map(session => (
-                <button
+                <ChatSessionRow
                   key={session.id}
-                  className={cn(
-                    'mb-1 flex h-9 w-full items-center justify-between rounded-md px-2 text-left text-sm text-sidebar-foreground transition hover:bg-sidebar-accent',
-                    activeView === 'chat' &&
-                      selectedSessionId === session.id &&
-                      'bg-sidebar-accent text-sidebar-accent-foreground',
-                  )}
-                  onClick={() => onSelectSession(session.id)}
-                >
-                  <span className="min-w-0 truncate">{session.title}</span>
-                  <span className="ml-2 shrink-0 text-xs text-muted-foreground">
-                    {formatRelativeTime(session.updated_at)}
-                  </span>
-                </button>
+                  session={session}
+                  isSelected={activeView === 'chat' && selectedSessionId === session.id}
+                  showDelete={armedSessionId === session.id}
+                  isDeleting={isDeletingSession}
+                  rowHandlers={getRowHandlers(session.id)}
+                  onSelect={() => {
+                    disarmDelete()
+                    onSelectSession(session.id)
+                  }}
+                  onDelete={() => handleDelete(session.id)}
+                />
               ))}
             </div>
           ))
@@ -1046,7 +1094,8 @@ interface ChatHeaderProps {
   model: string
   thinkingMode: ThinkingMode
   theme: 'light' | 'dark'
-  onOpenSidebar: () => void
+  isMobileSidebarOpen: boolean
+  onToggleSidebar: () => void
   onModelChange: (model: (typeof MODEL_OPTIONS)[number]) => void
   onThinkingChange: (mode: ThinkingMode) => void
   onThemeToggle: () => void
@@ -1057,7 +1106,8 @@ function ChatHeader({
   model,
   thinkingMode,
   theme,
-  onOpenSidebar,
+  isMobileSidebarOpen,
+  onToggleSidebar,
   onModelChange,
   onThinkingChange,
   onThemeToggle,
@@ -1069,10 +1119,10 @@ function ChatHeader({
           variant="ghost"
           size="icon"
           className="lg:hidden"
-          aria-label="Abrir menu"
-          onClick={onOpenSidebar}
+          aria-label={isMobileSidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+          onClick={onToggleSidebar}
         >
-          <Menu size={20} />
+          {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold">{title}</h1>
