@@ -298,7 +298,10 @@ def components() -> dict[str, object]:
                 }
             ),
             "CreateChatSessionRequest": object_schema({"title": string()}, required=[]),
-            "UpdateChatSessionRequest": object_schema({"pinned": {"type": "boolean"}}, required=["pinned"]),
+            "UpdateChatSessionRequest": object_schema(
+                {"pinned": {"type": "boolean"}},
+                required=["pinned"],
+            ),
             "Attachment": object_schema(
                 {
                     "id": string(),
