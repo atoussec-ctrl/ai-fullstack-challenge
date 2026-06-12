@@ -67,6 +67,7 @@ Escopo: código, testes, infra, endpoints, configuração, API keys, observabili
 | F-28 | `reasoning_effort` enviado para modelos não-reasoning (ex.: `gpt-4.1-mini`) | Média | ✅ Corrigido na Sprint 1 (`chat_model_kwargs` por família de modelo) |
 | F-29 | Import de livro `.pdf` decodifica bytes binários como UTF-8 (sem extração real de PDF) | Média | ✅ Corrigido (MS-105: `extract_pdf_text` com pypdf no import e em anexos) |
 | F-30 | Retry de envio sem sessão selecionada cria sessões duplicadas no frontend (`createSession` dentro da mutation) | Média | ✅ Corrigido (MS-604: `setSelectedSessionId` logo após criar a sessão) |
+| F-31 | `docker compose up --build` falha no frontend: pnpm v11 retorna `ERR_PNPM_IGNORED_BUILDS` (esbuild) e o Dockerfile não copiava o `pnpm-workspace.yaml` | Alta | ✅ Corrigido (MS-007: `allowBuilds: {esbuild: true}` no workspace + COPY no Dockerfile; validado `docker compose up` com containers healthy) |
 
 ## Pontos fortes confirmados
 

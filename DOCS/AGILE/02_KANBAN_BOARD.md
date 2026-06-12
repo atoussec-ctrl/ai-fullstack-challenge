@@ -37,12 +37,13 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 |---|---|---|---|---|
 | — | *(vazio)* | | | |
 
-### ✔️ Done — Sprint 1.1 — fixes do Bugbot (2026-06-11)
+### ✔️ Done — Sprint 1.1 — fixes do Bugbot + infra (2026-06-12)
 
 | Card | Título | Labels |
 |---|---|---|
 | MS-604 | Retry deixa de duplicar sessões no frontend (F-30) — teste de regressão Vitest | `bug` `frontend` |
 | MS-105 | Extração real de texto de PDF (pypdf) no import e em anexos do chat (F-29) | `bug` `backend` |
+| MS-007 | Build do Docker Compose corrigido (pnpm v11 allowBuilds + COPY do workspace) (F-31) | `bug` `infra` `frontend` |
 
 ### ✔️ Done — Sprint 1 (2026-06-11)
 

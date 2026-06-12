@@ -37,6 +37,12 @@ Formato: ID, história, critérios de aceite, labels, prioridade, estimativa (st
 - **Aceite:** `marshmallow` removido (ou adotado na validação); decisão registrada para `@tanstack/react-router`, `zod`, MSW (usar ou remover).
 - Labels: `refactor` · Prioridade: **P2** · Estimativa: **2**
 
+### MS-007 — Corrigir build do Docker Compose (pnpm v11 / esbuild)
+> **Como** dev, **quero** `docker compose up --build` funcionando, **para** subir backend e frontend sem ajustes manuais. (F-31)
+
+- **Aceite:** build do frontend não falha com `ERR_PNPM_IGNORED_BUILDS`; `pnpm-workspace.yaml` com `allowBuilds: {esbuild: true}` (pnpm v11 removeu `onlyBuiltDependencies`); Dockerfile copia `pnpm-workspace.yaml` antes do install; `docker compose up -d` deixa ambos os containers `healthy`.
+- Labels: `bug`, `infra`, `frontend` · Prioridade: **P1** · Estimativa: **2**
+
 ### MS-006 — Pipeline CI com quality gates
 > **Como** time, **quero** CI rodando lint + testes + cobertura + build a cada PR, **para** impedir regressões. (F-25, DOCS/25)
 
