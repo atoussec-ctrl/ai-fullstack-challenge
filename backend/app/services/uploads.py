@@ -25,6 +25,26 @@ ALLOWED_MIME_PREFIXES = {
     "audio": ("audio/", "video/webm"),
 }
 
+# Extensões de documento legíveis como texto puro (PDF é binário e fica de fora).
+TEXT_EXTRACTABLE_EXTENSIONS = {"txt", "md", "py", "json"}
+MAX_ATTACHMENT_TEXT_CHARS = 4000
+
+
+def read_attachment_text(attachment: Attachment) -> str | None:
+    """Return the attachment's text content for AI context, when extractable."""
+    if attachment.kind != "document":
+        return None
+    if extension_for(attachment.filename) not in TEXT_EXTRACTABLE_EXTENSIONS:
+        return None
+    try:
+        text = Path(attachment.storage_path).read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+    text = text.strip()
+    if not text:
+        return None
+    return text[:MAX_ATTACHMENT_TEXT_CHARS]
+
 
 def extension_for(filename: str) -> str:
     return Path(filename).suffix.lower().lstrip(".")

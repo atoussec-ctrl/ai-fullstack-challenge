@@ -168,8 +168,11 @@ class ChatRepository:
         db.session.commit()
         return message
 
+    def find_attachments(self, attachment_ids: list[str]) -> list[Attachment]:
+        return Attachment.query.filter(Attachment.id.in_(attachment_ids)).all()
+
     def attach_to_message(self, attachment_ids: list[str], message_id: str) -> list[Attachment]:
-        attachments = Attachment.query.filter(Attachment.id.in_(attachment_ids)).all()
+        attachments = self.find_attachments(attachment_ids)
         for attachment in attachments:
             attachment.message_id = message_id
         db.session.commit()
