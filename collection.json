@@ -1,0 +1,166 @@
+{
+  "info": {
+    "name": "MindSight AI API",
+    "description": "Postman collection for the Flask backend: books, AI chat, LangSmith feedback, uploads and semantic search.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "sessionId", "value": "" },
+    { "key": "bookId", "value": "" },
+    { "key": "assistantMessageId", "value": "" },
+    { "key": "attachmentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/v1/health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/health" }
+        },
+        {
+          "name": "GET /openapi.json",
+          "request": { "method": "GET", "url": "{{baseUrl}}/openapi.json" }
+        },
+        {
+          "name": "GET /docs",
+          "request": { "method": "GET", "url": "{{baseUrl}}/docs" }
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "POST /api/v1/books",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Python Fluente\",\n  \"category\": \"Programação\",\n  \"author\": \"Luciano Ramalho\",\n  \"publication_year\": 2015,\n  \"summary\": \"Livro avançado sobre Python idiomático, data model e iteradores.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/books"
+          }
+        },
+        {
+          "name": "GET /api/v1/books",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/books" }
+        },
+        {
+          "name": "GET /api/v1/books?q=python",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/books?q=python" }
+        },
+        {
+          "name": "GET /api/v1/books/:bookId",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/books/{{bookId}}" }
+        },
+        {
+          "name": "POST /api/v1/books/import",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/books/import"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "POST /api/v1/chat/sessions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Perguntas Python\"\n}" },
+            "url": "{{baseUrl}}/api/v1/chat/sessions"
+          }
+        },
+        {
+          "name": "GET /api/v1/chat/sessions",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/chat/sessions" }
+        },
+        {
+          "name": "GET /api/v1/chat/sessions/:sessionId/messages",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/chat/sessions/{{sessionId}}/messages" }
+        },
+        {
+          "name": "POST /api/v1/chat/messages",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{sessionId}}\",\n  \"content\": \"Como criar uma lista em Python?\",\n  \"thinking_mode\": \"balanced\",\n  \"model\": \"gpt-4.1-mini\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/chat/messages"
+          }
+        },
+        {
+          "name": "GET /api/v1/chat/messages/:assistantMessageId/stream",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/chat/messages/{{assistantMessageId}}/stream" }
+        },
+        {
+          "name": "POST /api/v1/chat/messages/:assistantMessageId/feedback",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 1,\n  \"key\": \"user_score\",\n  \"comment\": \"Resposta correta.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/chat/messages/{{assistantMessageId}}/feedback"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attachments",
+      "item": [
+        {
+          "name": "POST /api/v1/attachments",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "session_id", "value": "{{sessionId}}", "type": "text" },
+                { "key": "kind", "value": "document", "type": "text" },
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/attachments"
+          }
+        },
+        {
+          "name": "GET /api/v1/attachments/:attachmentId",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/attachments/{{attachmentId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Semantic Search",
+      "item": [
+        {
+          "name": "POST /api/v1/semantic-search",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Como guardar vários itens em Python?\",\n  \"k\": 3\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/semantic-search"
+          }
+        }
+      ]
+    }
+  ]
+}

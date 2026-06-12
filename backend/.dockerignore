@@ -1,0 +1,9 @@
+.venv
+__pycache__
+.pytest_cache
+.coverage
+htmlcov
+storage/app.db
+storage/faiss.index
+storage/uploads/*
+!storage/uploads/.gitkeep

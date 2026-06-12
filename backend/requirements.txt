@@ -1,0 +1,13 @@
+# Core runtime
+flask>=3.1
+flask-cors>=6.0
+flask-sqlalchemy>=3.1
+sqlalchemy>=2.0
+python-dotenv>=1.0
+marshmallow>=4.0
+langsmith>=0.3
+
+# Dev/test
+pytest>=9.0
+pytest-cov>=7.0
+ruff>=0.15

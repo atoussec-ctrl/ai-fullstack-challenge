@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Storage
+backend/storage/app.db
+backend/storage/faiss.index
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+
+# Test / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+frontend/test-results/
+frontend/playwright-report/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Storybook
+frontend/storybook-static/
+
+# Own
+UI_REFERENCE
+.agents/
+.codex/

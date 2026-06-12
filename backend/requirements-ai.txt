@@ -1,0 +1,9 @@
+# Optional AI integrations.
+# Install only when the Python version and deployment target support these wheels.
+langchain>=0.3
+langchain-openai>=0.3
+langchain-community>=0.3
+langsmith>=0.3
+openai>=1.60
+faiss-cpu>=1.9
+sentence-transformers>=3.4
