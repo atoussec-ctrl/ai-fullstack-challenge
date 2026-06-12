@@ -21,8 +21,9 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
-| MS-604 | Retry duplica sessões no frontend (Bugbot F-30) | `bug` `frontend` | P1 | 2 |
-| MS-105 | Extração real de texto de PDF (Bugbot F-29) | `bug` `backend` | P2 | 3 |
+| MS-006 | Pipeline CI com quality gates | `infra` `testing` | P1 | 5 |
+| MS-103 | Streaming SSE real do LLM | `ai` `feature` `backend` | P1 | 8 |
+| MS-603 | Streaming consumido na UI | `frontend` `feature` | P1 | 5 |
 
 ### 🔨 In Progress
 
@@ -35,6 +36,13 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
 | — | *(vazio)* | | | |
+
+### ✔️ Done — Sprint 1.1 — fixes do Bugbot (2026-06-11)
+
+| Card | Título | Labels |
+|---|---|---|
+| MS-604 | Retry deixa de duplicar sessões no frontend (F-30) — teste de regressão Vitest | `bug` `frontend` |
+| MS-105 | Extração real de texto de PDF (pypdf) no import e em anexos do chat (F-29) | `bug` `backend` |
 
 ### ✔️ Done — Sprint 1 (2026-06-11)
 
