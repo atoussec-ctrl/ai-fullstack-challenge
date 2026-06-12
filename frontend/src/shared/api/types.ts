@@ -3,6 +3,8 @@ export type ThinkingMode = 'fast' | 'balanced' | 'deep'
 export interface ChatSession {
   id: string
   title: string
+  pinned: boolean
+  pinned_at: string | null
   created_at: string
   updated_at: string
 }

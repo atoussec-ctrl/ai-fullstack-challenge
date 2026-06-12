@@ -5,6 +5,7 @@ import {
   formatRelativeTime,
   generateId,
   groupSessionsByDate,
+  groupSessionsForSidebar,
   truncate,
 } from './utils'
 
@@ -46,6 +47,25 @@ describe('utils', () => {
     ])
 
     vi.useRealTimers()
+  })
+
+  it('separates pinned sessions from recent groups', () => {
+    const layout = groupSessionsForSidebar([
+      {
+        updated_at: '2026-06-12T10:00:00Z',
+        pinned: true,
+        pinned_at: '2026-06-12T09:00:00Z',
+      },
+      {
+        updated_at: '2026-06-11T10:00:00Z',
+        pinned: false,
+        pinned_at: null,
+      },
+    ])
+
+    expect(layout.pinned).toHaveLength(1)
+    expect(layout.groups).toHaveLength(1)
+    expect(layout.groups[0].items).toHaveLength(1)
   })
 
   it('truncates long strings', () => {

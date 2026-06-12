@@ -1,76 +1,125 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import { Trash2 } from 'lucide-react'
+import { motion, useMotionValue, useTransform } from 'framer-motion'
+import { Pin, Trash2 } from 'lucide-react'
+import { useEffect } from 'react'
 
 import { cn, formatRelativeTime } from '@/shared/lib/utils'
 import type { ChatSession } from '@/shared/api/types'
+import { SESSION_SWIPE_THRESHOLD_PX } from './useSessionSwipeGesture'
 
 export interface ChatSessionRowProps {
   session: ChatSession
   isSelected: boolean
-  showDelete: boolean
+  isArmed: boolean
   isDeleting: boolean
+  isPinning: boolean
   onSelect: () => void
   onDelete: () => void
+  onPin: () => void
+  onDisarm: () => void
   rowHandlers: {
     onPointerDown: () => void
     onPointerUp: () => void
     onPointerLeave: () => void
     onPointerCancel: () => void
-    onDoubleClick: (event: React.MouseEvent) => void
   }
 }
 
 export function ChatSessionRow({
   session,
   isSelected,
-  showDelete,
+  isArmed,
   isDeleting,
+  isPinning,
   onSelect,
   onDelete,
+  onPin,
+  onDisarm,
   rowHandlers,
 }: ChatSessionRowProps) {
-  return (
-    <div
-      className={cn(
-        'group relative mb-1 flex h-9 w-full items-center rounded-md transition',
-        isSelected && 'bg-sidebar-accent text-sidebar-accent-foreground',
-      )}
-      {...rowHandlers}
-    >
-      <button
-        type="button"
-        className={cn(
-          'flex min-w-0 flex-1 items-center justify-between rounded-md px-2 text-left text-sm text-sidebar-foreground transition hover:bg-sidebar-accent',
-          isSelected && 'text-sidebar-accent-foreground',
-        )}
-        onClick={onSelect}
-      >
-        <span className="min-w-0 truncate pr-2">{session.title}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {formatRelativeTime(session.updated_at)}
-        </span>
-      </button>
+  const x = useMotionValue(0)
+  const pinOpacity = useTransform(x, [0, SESSION_SWIPE_THRESHOLD_PX], [0, 1])
+  const deleteOpacity = useTransform(x, [0, -SESSION_SWIPE_THRESHOLD_PX], [0, 1])
 
-      <AnimatePresence>
-        {showDelete && (
-          <motion.button
-            type="button"
-            initial={{ opacity: 0, scale: 0.5, x: 8 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.5, x: 8 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-            aria-label={`Excluir conversa ${session.title}`}
-            className="absolute right-1 grid h-7 w-7 place-items-center rounded-md bg-destructive text-destructive-foreground shadow-sm disabled:opacity-60"
-            disabled={isDeleting}
-            onClick={event => {
-              event.stopPropagation()
-              onDelete()
-            }}
-          >
-            <Trash2 size={14} />
-          </motion.button>
+  useEffect(() => {
+    if (!isArmed) {
+      x.set(0)
+    }
+  }, [isArmed, x])
+
+  function handleDragEnd(_: unknown, info: { offset: { x: number } }) {
+    if (!isArmed) return
+
+    if (info.offset.x <= -SESSION_SWIPE_THRESHOLD_PX) {
+      onDelete()
+      return
+    }
+
+    if (info.offset.x >= SESSION_SWIPE_THRESHOLD_PX) {
+      onPin()
+      return
+    }
+
+    onDisarm()
+  }
+
+  return (
+    <div className="relative mb-1 h-9 overflow-hidden rounded-md">
+      <div className="absolute inset-0 flex items-stretch">
+        <motion.div
+          style={{ opacity: pinOpacity }}
+          className="flex w-1/2 items-center gap-1 bg-emerald-600 px-3 text-xs font-medium text-white"
+        >
+          <Pin size={14} />
+          Fixar
+        </motion.div>
+        <motion.div
+          style={{ opacity: deleteOpacity }}
+          className="ml-auto flex w-1/2 items-center justify-end gap-1 bg-destructive px-3 text-xs font-medium text-destructive-foreground"
+        >
+          Excluir
+          <Trash2 size={14} />
+        </motion.div>
+      </div>
+
+      <motion.div
+        className={cn(
+          'relative flex h-9 w-full items-center rounded-md bg-sidebar transition-shadow',
+          isSelected && 'bg-sidebar-accent text-sidebar-accent-foreground',
+          isArmed && 'z-10 cursor-grab select-none shadow-md ring-1 ring-sidebar-border active:cursor-grabbing',
         )}
-      </AnimatePresence>
+        drag={isArmed ? 'x' : false}
+        dragConstraints={{ left: -120, right: 120 }}
+        dragElastic={0.12}
+        dragMomentum={false}
+        style={{ x, touchAction: isArmed ? 'none' : 'pan-y' }}
+        onDragEnd={handleDragEnd}
+        onContextMenu={event => {
+          if (isArmed) event.preventDefault()
+        }}
+        {...rowHandlers}
+      >
+        <button
+          type="button"
+          className={cn(
+            'flex min-w-0 flex-1 items-center justify-between rounded-md px-2 text-left text-sm text-sidebar-foreground transition hover:bg-sidebar-accent',
+            isSelected && 'text-sidebar-accent-foreground',
+            isArmed && 'pointer-events-none',
+          )}
+          onClick={onSelect}
+        >
+          <span className="flex min-w-0 items-center gap-1.5 truncate pr-2">
+            {session.pinned ? <Pin size={12} className="shrink-0 text-emerald-500" /> : null}
+            <span className="truncate">{session.title}</span>
+          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {formatRelativeTime(session.updated_at)}
+          </span>
+        </button>
+      </motion.div>
+
+      {(isDeleting || isPinning) && (
+        <div className="pointer-events-none absolute inset-0 rounded-md bg-sidebar/40" />
+      )}
     </div>
   )
 }

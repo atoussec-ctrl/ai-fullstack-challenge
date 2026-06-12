@@ -64,6 +64,22 @@ export function groupSessionsByDate<T extends { updated_at: string }>(
   return groups.filter(g => g.items.length > 0)
 }
 
+export function groupSessionsForSidebar<
+  T extends { updated_at: string; pinned: boolean; pinned_at?: string | null },
+>(sessions: T[]): { pinned: T[]; groups: { label: string; items: T[] }[] } {
+  const pinned = sessions
+    .filter(session => session.pinned)
+    .sort(
+      (left, right) =>
+        new Date(right.pinned_at ?? right.updated_at).getTime() -
+        new Date(left.pinned_at ?? left.updated_at).getTime(),
+    )
+
+  const groups = groupSessionsByDate(sessions.filter(session => !session.pinned))
+
+  return { pinned, groups }
+}
+
 export function generateId(): string {
   return crypto.randomUUID()
 }

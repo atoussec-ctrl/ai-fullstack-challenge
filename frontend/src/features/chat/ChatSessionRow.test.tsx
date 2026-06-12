@@ -6,6 +6,8 @@ import { ChatSessionRow } from './ChatSessionRow'
 const session = {
   id: 'session_1',
   title: 'Conversa de teste',
+  pinned: false,
+  pinned_at: null,
   created_at: '2026-06-12T00:00:00Z',
   updated_at: '2026-06-12T01:00:00Z',
 }
@@ -15,26 +17,27 @@ const rowHandlers = {
   onPointerUp: vi.fn(),
   onPointerLeave: vi.fn(),
   onPointerCancel: vi.fn(),
-  onDoubleClick: vi.fn(),
 }
 
 describe('ChatSessionRow', () => {
-  it('renders delete icon when showDelete is true', () => {
+  it('shows pin and delete actions when armed', () => {
     render(
       <ChatSessionRow
         session={session}
         isSelected={false}
-        showDelete
+        isArmed
         isDeleting={false}
+        isPinning={false}
         onSelect={vi.fn()}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
+        onDisarm={vi.fn()}
         rowHandlers={rowHandlers}
       />,
     )
 
-    expect(
-      screen.getByLabelText('Excluir conversa Conversa de teste'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Fixar')).toBeInTheDocument()
+    expect(screen.getByText('Excluir')).toBeInTheDocument()
   })
 
   it('applies selected styles when active', () => {
@@ -42,33 +45,39 @@ describe('ChatSessionRow', () => {
       <ChatSessionRow
         session={session}
         isSelected
-        showDelete={false}
+        isArmed={false}
         isDeleting={false}
+        isPinning={false}
         onSelect={vi.fn()}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
+        onDisarm={vi.fn()}
         rowHandlers={rowHandlers}
       />,
     )
 
-    expect(container.firstChild).toHaveClass('bg-sidebar-accent')
+    expect(container.querySelector('.bg-sidebar-accent')).toBeInTheDocument()
   })
 
-  it('calls onDelete when trash icon is clicked', () => {
-    const onDelete = vi.fn()
+  it('calls onSelect when row is clicked', () => {
+    const onSelect = vi.fn()
 
     render(
       <ChatSessionRow
         session={session}
         isSelected={false}
-        showDelete
+        isArmed={false}
         isDeleting={false}
-        onSelect={vi.fn()}
-        onDelete={onDelete}
+        isPinning={false}
+        onSelect={onSelect}
+        onDelete={vi.fn()}
+        onPin={vi.fn()}
+        onDisarm={vi.fn()}
         rowHandlers={rowHandlers}
       />,
     )
 
-    fireEvent.click(screen.getByLabelText('Excluir conversa Conversa de teste'))
-    expect(onDelete).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByText('Conversa de teste'))
+    expect(onSelect).toHaveBeenCalledTimes(1)
   })
 })

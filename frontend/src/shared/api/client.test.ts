@@ -8,6 +8,7 @@ import {
   listMessages,
   listSessions,
   sendMessage,
+  updateSessionPin,
 } from './client'
 
 describe('chat session client', () => {
@@ -19,6 +20,8 @@ describe('chat session client', () => {
           {
             id: 'session_1',
             title: 'Conversa',
+            pinned: false,
+            pinned_at: null,
             created_at: '2026-06-12T00:00:00Z',
             updated_at: '2026-06-12T01:00:00Z',
           },
@@ -128,6 +131,8 @@ describe('chat session client', () => {
         Response.json({
           id: 'session_new',
           title: 'Nova conversa',
+          pinned: false,
+          pinned_at: null,
           created_at: '2026-06-12T00:00:00Z',
           updated_at: '2026-06-12T00:00:00Z',
         }),
@@ -165,5 +170,30 @@ describe('deleteSession', () => {
     )
 
     await expect(deleteSession('missing')).rejects.toThrow('Conversa não encontrada.')
+  })
+})
+
+describe('updateSessionPin', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('patches pinned state on the session', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          id: 'session_1',
+          title: 'Conversa',
+          pinned: true,
+          pinned_at: '2026-06-12T02:00:00Z',
+          created_at: '2026-06-12T00:00:00Z',
+          updated_at: '2026-06-12T02:00:00Z',
+        }),
+      ),
+    )
+
+    const session = await updateSessionPin('session_1', true)
+    expect(session.pinned).toBe(true)
   })
 })

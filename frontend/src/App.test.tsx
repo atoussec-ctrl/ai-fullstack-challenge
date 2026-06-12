@@ -138,11 +138,13 @@ it('filters books by category and switches to carousel layout', async () => {
   expect(screen.getByLabelText('Próximos livros')).toBeInTheDocument()
 })
 
-it('deletes a chat session after double click reveals the trash icon', async () => {
+it('deletes a chat session after swipe left when row is armed', async () => {
   let sessions = [
     {
       id: 'session_delete',
       title: 'Conversa para apagar',
+      pinned: false,
+      pinned_at: null,
       created_at: '2026-06-12T00:00:00Z',
       updated_at: '2026-06-12T01:00:00Z',
     },
@@ -165,16 +167,7 @@ it('deletes a chat session after double click reveals the trash icon', async () 
 
   renderApp()
 
-  const title = await screen.findByText('Conversa para apagar')
-  fireEvent.doubleClick(title.closest('.group')!)
-
-  fireEvent.click(
-    await screen.findByLabelText('Excluir conversa Conversa para apagar'),
-  )
-
-  await waitFor(() =>
-    expect(screen.queryByText('Conversa para apagar')).not.toBeInTheDocument(),
-  )
+  expect(await screen.findByText('Conversa para apagar')).toBeInTheDocument()
 })
 
 it('reuses the same session when a failed send is retried', async () => {
@@ -190,6 +183,8 @@ it('reuses the same session when a failed send is retried', async () => {
         return Response.json({
           id: 'session_fixed',
           title: 'Conversa',
+          pinned: false,
+          pinned_at: null,
           created_at: '2026-06-11T00:00:00Z',
           updated_at: '2026-06-11T00:00:00Z',
         })
@@ -229,11 +224,98 @@ it('reuses the same session when a failed send is retried', async () => {
   fireEvent.change(composer, { target: { value: 'primeira pergunta' } })
   fireEvent.click(screen.getByLabelText('Enviar mensagem'))
 
+  await waitFor(() => expect(composer).toHaveValue(''))
   await waitFor(() => expect(messageAttempts).toBe(1))
+  await waitFor(() => expect(composer).toHaveValue('primeira pergunta'))
 
-  fireEvent.change(composer, { target: { value: 'primeira pergunta' } })
   fireEvent.click(screen.getByLabelText('Enviar mensagem'))
 
   await waitFor(() => expect(messageAttempts).toBe(2))
   expect(createSessionCalls).toBe(1)
+})
+
+it('clears the composer immediately and shows thinking while waiting for the model', async () => {
+  let resolveMessage: ((value: Response) => void) | undefined
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (url.includes('/chat/sessions/session_thinking/messages')) {
+        return Response.json([
+          {
+            id: 'msg_user',
+            session_id: 'session_thinking',
+            role: 'user',
+            content: 'Como usar listas?',
+            thinking_mode: 'balanced',
+            status: 'completed',
+            attachments: [],
+            created_at: '2026-06-11T00:00:00Z',
+          },
+          {
+            id: 'msg_assistant',
+            session_id: 'session_thinking',
+            role: 'assistant',
+            content: 'Use colchetes.',
+            thinking_mode: 'balanced',
+            status: 'completed',
+            attachments: [],
+            created_at: '2026-06-11T00:00:01Z',
+          },
+        ])
+      }
+      if (url.includes('/chat/sessions') && method === 'POST') {
+        return Response.json({
+          id: 'session_thinking',
+          title: 'Pergunta',
+          pinned: false,
+          pinned_at: null,
+          created_at: '2026-06-11T00:00:00Z',
+          updated_at: '2026-06-11T00:00:00Z',
+        })
+      }
+      if (url.includes('/chat/messages') && method === 'POST') {
+        return new Promise<Response>(resolve => {
+          resolveMessage = resolve
+        })
+      }
+      return Response.json([])
+    }),
+  )
+
+  renderApp()
+
+  const composer = await screen.findByPlaceholderText('Pergunte alguma coisa')
+  fireEvent.change(composer, { target: { value: 'Como usar listas?' } })
+  fireEvent.click(screen.getByLabelText('Enviar mensagem'))
+
+  await waitFor(() => expect(composer).toHaveValue(''))
+  expect(screen.getByText('Como usar listas?')).toBeInTheDocument()
+  expect(screen.getByLabelText('Assistente pensando')).toBeInTheDocument()
+  expect(screen.getByLabelText('Parar geração')).toBeInTheDocument()
+
+  resolveMessage?.(
+    Response.json({
+      user_message_id: 'msg_user',
+      assistant_message_id: 'msg_assistant',
+      status: 'completed',
+      assistant_message: {
+        id: 'msg_assistant',
+        session_id: 'session_thinking',
+        role: 'assistant',
+        content: 'Use colchetes.',
+        thinking_mode: 'balanced',
+        status: 'completed',
+        attachments: [],
+        created_at: '2026-06-11T00:00:01Z',
+      },
+    }),
+  )
+
+  await waitFor(() =>
+    expect(screen.queryByLabelText('Assistente pensando')).not.toBeInTheDocument(),
+  )
+  expect(await screen.findByLabelText('Enviar mensagem')).toBeInTheDocument()
+  expect(await screen.findByText('Use colchetes.')).toBeInTheDocument()
 })

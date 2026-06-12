@@ -14,6 +14,17 @@ import type {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1'
 
+function parseApiError(
+  payload: { error?: { message?: string } } | null,
+  fallback: string,
+): string {
+  const message = payload?.error?.message ?? fallback
+  if (message.includes('requested URL was not found')) {
+    return 'Endpoint da API indisponível. Reconstrua o backend (docker compose build backend).'
+  }
+  return message
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -25,8 +36,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    const message = payload?.error?.message ?? 'Falha ao comunicar com a API.'
-    throw new Error(message)
+    throw new Error(parseApiError(payload, 'Falha ao comunicar com a API.'))
   }
 
   return response.json() as Promise<T>
@@ -80,19 +90,26 @@ export async function deleteSession(sessionId: string): Promise<void> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    const message = payload?.error?.message ?? 'Falha ao excluir a conversa.'
-    throw new Error(message)
+    throw new Error(parseApiError(payload, 'Falha ao excluir a conversa.'))
   }
+}
+
+export function updateSessionPin(sessionId: string, pinned: boolean) {
+  return request<ChatSession>(`/chat/sessions/${sessionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pinned }),
+  })
 }
 
 export function listMessages(sessionId: string) {
   return request<ChatMessage[]>(`/chat/sessions/${sessionId}/messages`)
 }
 
-export function sendMessage(input: SendMessageInput) {
+export function sendMessage(input: SendMessageInput, signal?: AbortSignal) {
   return request<SendMessageResponse>('/chat/messages', {
     method: 'POST',
     body: JSON.stringify(input),
+    signal,
   })
 }
 
@@ -100,6 +117,7 @@ export function uploadAttachment(
   sessionId: string,
   file: File,
   kind: AttachmentKind,
+  signal?: AbortSignal,
 ) {
   const formData = new FormData()
   formData.set('session_id', sessionId)
@@ -109,6 +127,7 @@ export function uploadAttachment(
   return request<Attachment>('/attachments', {
     method: 'POST',
     body: formData,
+    signal,
   })
 }
 

@@ -39,8 +39,9 @@ import {
   validateFiles,
 } from '@/features/chat/attachments'
 import { ChatSessionRow } from '@/features/chat/ChatSessionRow'
+import { ThinkingIndicator } from '@/features/chat/ThinkingIndicator'
 import { useAudioRecorder } from '@/features/chat/useAudioRecorder'
-import { useSessionDeleteGesture } from '@/features/chat/useSessionDeleteGesture'
+import { useSessionSwipeGesture } from '@/features/chat/useSessionSwipeGesture'
 import {
   createBook,
   createSession,
@@ -50,6 +51,7 @@ import {
   listMessages,
   listSessions,
   sendMessage,
+  updateSessionPin,
   uploadAttachment,
 } from '@/shared/api/client'
 import type {
@@ -61,7 +63,7 @@ import type {
   ThinkingMode,
 } from '@/shared/api/types'
 import { useHandleMobileSideBar } from '@/hooks/useHandleMobileSideBar'
-import { cn, formatFileSize, groupSessionsByDate } from '@/shared/lib/utils'
+import { cn, formatFileSize, groupSessionsForSidebar } from '@/shared/lib/utils'
 
 const MODEL_OPTIONS = [
   'deepseek-ai/DeepSeek-V4-Flash',
@@ -93,11 +95,32 @@ const AssistantMarkdown = lazy(() => import('@/features/chat/AssistantMarkdown')
 
 type AppView = 'chat' | 'books' | 'settings'
 
+type SendMessagePayload = {
+  content: string
+  attachments: PendingAttachment[]
+}
+
+type OptimisticTurn = {
+  userContent: string
+  attachments: PendingAttachment[]
+  thinkingMode: ThinkingMode
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'AbortError' || error.code === 20)
+  )
+}
+
 function App() {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [composerValue, setComposerValue] = useState('')
+  const [optimisticTurn, setOptimisticTurn] = useState<OptimisticTurn | null>(null)
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>(
     (import.meta.env.VITE_DEFAULT_THINKING_MODE as ThinkingMode) ?? 'balanced',
   )
@@ -126,42 +149,57 @@ function App() {
   })
 
   const sendMessageMutation = useMutation({
-    mutationFn: async () => {
-      const content = composerValue.trim()
-      if (!content && pendingAttachments.length === 0) {
+    mutationFn: async ({ content, attachments }: SendMessagePayload) => {
+      const signal = abortControllerRef.current?.signal
+      const trimmed = content.trim()
+      if (!trimmed && attachments.length === 0) {
         throw new Error('Digite uma pergunta ou anexe um arquivo.')
       }
 
       let session = selectedSessionId
       if (!session) {
         session = (
-          await createSession(content ? content.slice(0, 54) : 'Conversa com anexos')
+          await createSession(trimmed ? trimmed.slice(0, 54) : 'Conversa com anexos')
         ).id
-        // Persiste a sessão imediatamente para que um retry após falha de
-        // upload/envio reuse a mesma conversa em vez de criar outra.
         setSelectedSessionId(session)
         queryClient.invalidateQueries({ queryKey: ['sessions'] })
       }
 
       const uploaded = []
-      for (const attachment of pendingAttachments) {
+      for (const attachment of attachments) {
         uploaded.push(
-          await uploadAttachment(session, attachment.file, attachment.kind),
+          await uploadAttachment(session, attachment.file, attachment.kind, signal),
         )
       }
 
-      return sendMessage({
-        session_id: session,
-        content,
-        thinking_mode: thinkingMode,
-        attachment_ids: uploaded.map(attachment => attachment.id),
-        model,
+      return sendMessage(
+        {
+          session_id: session,
+          content: trimmed,
+          thinking_mode: thinkingMode,
+          attachment_ids: uploaded.map(attachment => attachment.id),
+          model,
+        },
+        signal,
+      )
+    },
+    onMutate: ({ content, attachments }) => {
+      abortControllerRef.current = new AbortController()
+      setOptimisticTurn({
+        userContent: content.trim(),
+        attachments: [...attachments],
+        thinkingMode,
       })
+      setComposerValue('')
+      attachments.forEach(revokePendingAttachment)
+      setPendingAttachments([])
+      setUiError(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     },
     onSuccess: response => {
-      setComposerValue('')
-      pendingAttachments.forEach(revokePendingAttachment)
-      setPendingAttachments([])
+      setOptimisticTurn(null)
       setSelectedSessionId(response.assistant_message.session_id)
       setUiError(null)
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
@@ -169,8 +207,17 @@ function App() {
         queryKey: ['messages', response.assistant_message.session_id],
       })
     },
-    onError: error => {
+    onError: (error, variables) => {
+      setOptimisticTurn(null)
+      setComposerValue(variables.content)
+      if (isAbortError(error)) {
+        setUiError(null)
+        return
+      }
       setUiError(error instanceof Error ? error.message : 'Falha ao enviar mensagem.')
+    },
+    onSettled: () => {
+      abortControllerRef.current = null
     },
   })
 
@@ -214,9 +261,24 @@ function App() {
     },
   })
 
+  const pinSessionMutation = useMutation({
+    mutationFn: ({ sessionId, pinned }: { sessionId: string; pinned: boolean }) =>
+      updateSessionPin(sessionId, pinned),
+    onSuccess: () => {
+      setUiError(null)
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    },
+    onError: error => {
+      setUiError(error instanceof Error ? error.message : 'Falha ao fixar conversa.')
+    },
+  })
+
   const sessions = useMemo(() => sessionsQuery.data ?? [], [sessionsQuery.data])
   const messages = messagesQuery.data ?? []
-  const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions])
+  const { pinned: pinnedSessions, groups: groupedSessions } = useMemo(
+    () => groupSessionsForSidebar(sessions),
+    [sessions],
+  )
   const selectedSession = sessions.find(session => session.id === selectedSessionId)
 
   useEffect(() => {
@@ -231,6 +293,13 @@ function App() {
   useEffect(() => {
     return () => pendingAttachmentsRef.current.forEach(revokePendingAttachment)
   }, [])
+
+  useEffect(() => {
+    if (!sendMessageMutation.isPending && !optimisticTurn) {
+      return
+    }
+    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' })
+  }, [sendMessageMutation.isPending, optimisticTurn, messages.length])
 
   function selectFiles(files: FileList | null) {
     if (!files) return
@@ -271,14 +340,29 @@ function App() {
   }
 
   function submit() {
-    if (!sendMessageMutation.isPending) {
-      sendMessageMutation.mutate()
+    if (sendMessageMutation.isPending) {
+      return
     }
+
+    const content = composerValue.trim()
+    if (!content && pendingAttachments.length === 0) {
+      setUiError('Digite uma pergunta ou anexe um arquivo.')
+      return
+    }
+
+    sendMessageMutation.mutate({
+      content,
+      attachments: [...pendingAttachments],
+    })
+  }
+
+  function stopGeneration() {
+    abortControllerRef.current?.abort()
   }
 
   const sidebar = (
     <ChatSidebar
-      sessions={sessions}
+      pinnedSessions={pinnedSessions}
       groupedSessions={groupedSessions}
       selectedSessionId={selectedSessionId}
       isLoading={sessionsQuery.isLoading}
@@ -308,7 +392,11 @@ function App() {
         mobileSidebar.handleClose()
       }}
       onDeleteSession={sessionId => deleteSessionMutation.mutateAsync(sessionId)}
+      onPinSession={(sessionId, pinned) =>
+        pinSessionMutation.mutateAsync({ sessionId, pinned })
+      }
       isDeletingSession={deleteSessionMutation.isPending}
+      isPinningSession={pinSessionMutation.isPending}
     />
   )
 
@@ -380,10 +468,29 @@ function App() {
             <section className="relative min-h-0 flex-1">
               <div className="h-full overflow-y-auto px-4 pb-[180px] pt-8 sm:px-8">
                 <div className="mx-auto flex w-full max-w-[960px] flex-col gap-8">
-                  {messagesQuery.isLoading && selectedSessionId ? (
+                  {messagesQuery.isLoading && selectedSessionId && !optimisticTurn ? (
                     <MessageSkeleton />
-                  ) : messages.length > 0 ? (
-                    <MessageList messages={messages} />
+                  ) : messages.length > 0 || optimisticTurn ? (
+                    <>
+                      <MessageList messages={messages} />
+                      {optimisticTurn && (
+                        <>
+                          <OptimisticUserBubble turn={optimisticTurn} />
+                          <AnimatePresence>
+                            {sendMessageMutation.isPending && (
+                              <ThinkingIndicator
+                                modeLabel={
+                                  THINKING_OPTIONS.find(
+                                    item => item.value === optimisticTurn.thinkingMode,
+                                  )?.label ?? 'Equilibrado'
+                                }
+                              />
+                            )}
+                          </AnimatePresence>
+                        </>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </>
                   ) : (
                     <EmptyState
                       onUseSuggestion={suggestion => setComposerValue(suggestion)}
@@ -402,6 +509,7 @@ function App() {
                 isRecording={audioRecorder.isRecording}
                 onChange={setComposerValue}
                 onSubmit={submit}
+                onStop={stopGeneration}
                 onAttachClick={() => fileInputRef.current?.click()}
                 onRemoveAttachment={removeAttachment}
                 onToggleRecording={toggleRecording}
@@ -424,7 +532,7 @@ function App() {
 }
 
 interface ChatSidebarProps {
-  sessions: ChatSession[]
+  pinnedSessions: ChatSession[]
   groupedSessions: Array<{ label: string; items: ChatSession[] }>
   selectedSessionId: string | null
   activeView: AppView
@@ -436,10 +544,13 @@ interface ChatSidebarProps {
   onSelectSession: (sessionId: string) => void
   onCloseSidebar: () => void
   onDeleteSession: (sessionId: string) => Promise<void>
+  onPinSession: (sessionId: string, pinned: boolean) => Promise<ChatSession>
   isDeletingSession: boolean
+  isPinningSession: boolean
 }
 
 function ChatSidebar({
+  pinnedSessions,
   groupedSessions,
   selectedSessionId,
   activeView,
@@ -451,13 +562,41 @@ function ChatSidebar({
   onSelectSession,
   onCloseSidebar,
   onDeleteSession,
+  onPinSession,
   isDeletingSession,
+  isPinningSession,
 }: ChatSidebarProps) {
-  const { armedSessionId, disarmDelete, getRowHandlers } = useSessionDeleteGesture()
+  const { armedSessionId, disarmSwipe, getRowHandlers } = useSessionSwipeGesture()
 
   async function handleDelete(sessionId: string) {
     await onDeleteSession(sessionId)
-    disarmDelete()
+    disarmSwipe()
+  }
+
+  async function handlePin(session: ChatSession) {
+    await onPinSession(session.id, !session.pinned)
+    disarmSwipe()
+  }
+
+  function renderSessionRow(session: ChatSession) {
+    return (
+      <ChatSessionRow
+        key={session.id}
+        session={session}
+        isSelected={activeView === 'chat' && selectedSessionId === session.id}
+        isArmed={armedSessionId === session.id}
+        isDeleting={isDeletingSession}
+        isPinning={isPinningSession}
+        rowHandlers={getRowHandlers(session.id)}
+        onSelect={() => {
+          disarmSwipe()
+          onSelectSession(session.id)
+        }}
+        onDelete={() => handleDelete(session.id)}
+        onPin={() => handlePin(session)}
+        onDisarm={disarmSwipe}
+      />
+    )
   }
 
   return (
@@ -485,7 +624,7 @@ function ChatSidebar({
           icon={<Plus size={18} />}
           label="Novo chat"
           onClick={() => {
-            disarmDelete()
+            disarmSwipe()
             onNewChat()
           }}
         />
@@ -511,33 +650,28 @@ function ChatSidebar({
       </div>
 
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto px-3">
-        <p className="mb-2 px-2 text-sm font-semibold text-foreground">Recentes</p>
         {isLoading ? (
           <div className="space-y-2">
             <div className="h-9 rounded-md bg-sidebar-accent" />
             <div className="h-9 rounded-md bg-sidebar-accent" />
           </div>
-        ) : groupedSessions.length > 0 ? (
-          groupedSessions.map(group => (
-            <div className="mb-4" key={group.label}>
-              <p className="mb-1 px-2 text-xs text-muted-foreground">{group.label}</p>
-              {group.items.map(session => (
-                <ChatSessionRow
-                  key={session.id}
-                  session={session}
-                  isSelected={activeView === 'chat' && selectedSessionId === session.id}
-                  showDelete={armedSessionId === session.id}
-                  isDeleting={isDeletingSession}
-                  rowHandlers={getRowHandlers(session.id)}
-                  onSelect={() => {
-                    disarmDelete()
-                    onSelectSession(session.id)
-                  }}
-                  onDelete={() => handleDelete(session.id)}
-                />
-              ))}
-            </div>
-          ))
+        ) : pinnedSessions.length > 0 || groupedSessions.length > 0 ? (
+          <>
+            {pinnedSessions.length > 0 ? (
+              <div className="mb-4">
+                <p className="mb-2 px-2 text-sm font-semibold text-foreground">Fixados</p>
+                {pinnedSessions.map(renderSessionRow)}
+              </div>
+            ) : null}
+
+            <p className="mb-2 px-2 text-sm font-semibold text-foreground">Recentes</p>
+            {groupedSessions.map(group => (
+              <div className="mb-4" key={group.label}>
+                <p className="mb-1 px-2 text-xs text-muted-foreground">{group.label}</p>
+                {group.items.map(renderSessionRow)}
+              </div>
+            ))}
+          </>
         ) : (
           <p className="px-2 text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
         )}
@@ -1209,6 +1343,32 @@ function EmptyState({ onUseSuggestion }: { onUseSuggestion: (value: string) => v
   )
 }
 
+function OptimisticUserBubble({ turn }: { turn: OptimisticTurn }) {
+  return (
+    <motion.article
+      className="flex w-full justify-end"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+    >
+      <div className="max-w-[860px] rounded-2xl bg-secondary px-5 py-4 text-secondary-foreground sm:max-w-[72%]">
+        {turn.attachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {turn.attachments.map(attachment => (
+              <Badge key={attachment.id}>{attachment.file.name}</Badge>
+            ))}
+          </div>
+        )}
+        {turn.userContent ? (
+          <p className="whitespace-pre-wrap text-base leading-7">{turn.userContent}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Enviando anexos...</p>
+        )}
+      </div>
+    </motion.article>
+  )
+}
+
 function MessageList({ messages }: { messages: ChatMessage[] }) {
   return (
     <div className="space-y-8" aria-live="polite">
@@ -1286,6 +1446,7 @@ interface ChatComposerProps {
   isRecording: boolean
   onChange: (value: string) => void
   onSubmit: () => void
+  onStop: () => void
   onAttachClick: () => void
   onRemoveAttachment: (id: string) => void
   onToggleRecording: () => void
@@ -1301,6 +1462,7 @@ function ChatComposer({
   isRecording,
   onChange,
   onSubmit,
+  onStop,
   onAttachClick,
   onRemoveAttachment,
   onToggleRecording,
@@ -1379,10 +1541,10 @@ function ChatComposer({
                 {isRecording ? <Square size={16} /> : <Mic size={18} />}
               </Button>
               <Button
+                variant={isSending ? 'danger' : 'default'}
                 size="icon"
-                aria-label="Enviar mensagem"
-                disabled={isSending}
-                onClick={onSubmit}
+                aria-label={isSending ? 'Parar geração' : 'Enviar mensagem'}
+                onClick={isSending ? onStop : onSubmit}
               >
                 {isSending ? <Square size={16} /> : <SendHorizontal size={18} />}
               </Button>

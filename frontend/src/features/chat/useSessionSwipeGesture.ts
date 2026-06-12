@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from 'react'
 
-export const SESSION_DELETE_LONG_PRESS_MS = 550
+export const SESSION_SWIPE_ARM_MS = 550
+export const SESSION_SWIPE_THRESHOLD_PX = 72
 
-export function useSessionDeleteGesture(longPressMs = SESSION_DELETE_LONG_PRESS_MS) {
+export function useSessionSwipeGesture(armDelayMs = SESSION_SWIPE_ARM_MS) {
   const [armedSessionId, setArmedSessionId] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -13,12 +14,15 @@ export function useSessionDeleteGesture(longPressMs = SESSION_DELETE_LONG_PRESS_
     }
   }, [])
 
-  const armDelete = useCallback((sessionId: string) => {
-    clearTimer()
-    setArmedSessionId(sessionId)
-  }, [clearTimer])
+  const armSwipe = useCallback(
+    (sessionId: string) => {
+      clearTimer()
+      setArmedSessionId(sessionId)
+    },
+    [clearTimer],
+  )
 
-  const disarmDelete = useCallback(() => {
+  const disarmSwipe = useCallback(() => {
     clearTimer()
     setArmedSessionId(null)
   }, [clearTimer])
@@ -27,18 +31,14 @@ export function useSessionDeleteGesture(longPressMs = SESSION_DELETE_LONG_PRESS_
     (sessionId: string) => ({
       onPointerDown: () => {
         clearTimer()
-        timerRef.current = setTimeout(() => armDelete(sessionId), longPressMs)
+        timerRef.current = setTimeout(() => armSwipe(sessionId), armDelayMs)
       },
       onPointerUp: clearTimer,
       onPointerLeave: clearTimer,
       onPointerCancel: clearTimer,
-      onDoubleClick: (event: React.MouseEvent) => {
-        event.preventDefault()
-        armDelete(sessionId)
-      },
     }),
-    [armDelete, clearTimer, longPressMs],
+    [armSwipe, clearTimer, armDelayMs],
   )
 
-  return { armedSessionId, armDelete, disarmDelete, getRowHandlers }
+  return { armedSessionId, armSwipe, disarmSwipe, getRowHandlers }
 }
