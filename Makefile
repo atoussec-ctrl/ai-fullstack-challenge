@@ -8,7 +8,9 @@ BACKEND_PYTEST := $(BACKEND_VENV)/bin/pytest
 BACKEND_RUFF := $(BACKEND_VENV)/bin/ruff
 BACKEND_PIP := python3 -m pip --python $(BACKEND_VENV)
 
-.PHONY: install backend-venv backend-install backend-install-ai dev backend-dev frontend-dev docker-up docker-down docker-logs test lint typecheck build clean backend-test backend-test-cov frontend-test frontend-test-cov
+.PHONY: install backend-venv backend-install backend-install-ai dev backend-dev frontend-dev docker-up docker-down docker-logs test lint typecheck build clean backend-test backend-test-cov frontend-test frontend-test-cov seed backend-seed db-backup db-restore
+
+BACKEND_DB := backend/storage/app.db
 
 # ── Install ──
 install: backend-install
@@ -46,6 +48,32 @@ docker-down:
 
 docker-logs:
 	docker compose logs -f
+
+# ── Database ──
+backend-seed:
+	cd backend && .venv/bin/python seed.py
+
+seed: backend-seed
+
+# Faz backup do SQLite atual em storage/backups/app-<timestamp>.db
+db-backup:
+	@mkdir -p backend/storage/backups
+	@if [ -f $(BACKEND_DB) ]; then \
+		cp $(BACKEND_DB) backend/storage/backups/app-$$(date +%Y%m%d-%H%M%S).db ; \
+		echo "Backup salvo em backend/storage/backups/" ; \
+	else \
+		echo "Nada para fazer backup: $(BACKEND_DB) não existe." ; \
+	fi
+
+# Restaura o backup mais recente. Uso: make db-restore
+db-restore:
+	@latest=$$(ls -1t backend/storage/backups/app-*.db 2>/dev/null | head -n1) ; \
+	if [ -n "$$latest" ]; then \
+		cp "$$latest" $(BACKEND_DB) ; \
+		echo "Restaurado de $$latest" ; \
+	else \
+		echo "Nenhum backup encontrado em backend/storage/backups/." ; \
+	fi
 
 # ── Tests ──
 backend-test:
