@@ -6,6 +6,7 @@ sqlalchemy>=2.0
 python-dotenv>=1.0
 marshmallow>=4.0
 langsmith>=0.3
+pypdf>=5.0
 
 # Dev/test
 pytest>=9.0

@@ -25,7 +25,7 @@ ALLOWED_MIME_PREFIXES = {
     "audio": ("audio/", "video/webm"),
 }
 
-# Extensões de documento legíveis como texto puro (PDF é binário e fica de fora).
+# Extensões de documento legíveis como texto puro.
 TEXT_EXTRACTABLE_EXTENSIONS = {"txt", "md", "py", "json"}
 MAX_ATTACHMENT_TEXT_CHARS = 4000
 
@@ -34,10 +34,19 @@ def read_attachment_text(attachment: Attachment) -> str | None:
     """Return the attachment's text content for AI context, when extractable."""
     if attachment.kind != "document":
         return None
-    if extension_for(attachment.filename) not in TEXT_EXTRACTABLE_EXTENSIONS:
-        return None
+    extension = extension_for(attachment.filename)
     try:
-        text = Path(attachment.storage_path).read_text(encoding="utf-8", errors="ignore")
+        if extension == "pdf":
+            from app.services.book_import import extract_pdf_text
+
+            raw = Path(attachment.storage_path).read_bytes()
+            text = extract_pdf_text(raw)
+        elif extension in TEXT_EXTRACTABLE_EXTENSIONS:
+            text = Path(attachment.storage_path).read_text(
+                encoding="utf-8", errors="ignore"
+            )
+        else:
+            return None
     except OSError:
         return None
     text = text.strip()

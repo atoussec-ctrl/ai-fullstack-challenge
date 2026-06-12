@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 
 from werkzeug.datastructures import FileStorage
@@ -93,7 +94,10 @@ class BookImportService:
             raise ValueError("Envie um arquivo .txt, .md, .json ou .pdf.")
 
         raw = file.read()
-        content = raw.decode("utf-8", errors="ignore")
+        if extension == ".pdf":
+            content = extract_pdf_text(raw)
+        else:
+            content = raw.decode("utf-8", errors="ignore")
         if not content.strip():
             raise ValueError("Arquivo sem texto legível para extração.")
 
@@ -108,6 +112,23 @@ class BookImportService:
             }
         )
         return book, extracted
+
+
+def extract_pdf_text(raw: bytes) -> str:
+    """Extract text from PDF bytes. Returns empty string for scanned/text-less PDFs."""
+    try:
+        from pypdf import PdfReader
+    except ImportError as exc:  # pragma: no cover - depends on optional package
+        raise RuntimeError(
+            "Dependência pypdf não instalada para leitura de PDF."
+        ) from exc
+
+    try:
+        reader = PdfReader(BytesIO(raw))
+        pages = [page.extract_text() or "" for page in reader.pages]
+    except Exception:
+        return ""
+    return "\n".join(pages).strip()
 
 
 def parse_json_content(content: str) -> dict[str, object] | None:

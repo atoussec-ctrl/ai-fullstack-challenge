@@ -7,3 +7,4 @@ langsmith>=0.3
 openai>=1.60
 faiss-cpu>=1.9
 sentence-transformers>=3.4
+pypdf>=5.0
