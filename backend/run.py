@@ -4,10 +4,9 @@ Usage:
     python run.py
 """
 
-from dotenv import load_dotenv
+from app.env_loader import load_project_env
 
-# Load .env from project root (one level up)
-load_dotenv(dotenv_path="../.env")
+load_project_env()
 
 from app import create_app  # noqa: E402
 

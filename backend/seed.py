@@ -6,9 +6,9 @@ Usage:
 Idempotent: running it again will not duplicate existing books.
 """
 
-from dotenv import load_dotenv
+from app.env_loader import load_project_env
 
-load_dotenv(dotenv_path="../.env")
+load_project_env()
 
 from app import create_app  # noqa: E402
 from app.services.seed import seed_books  # noqa: E402
