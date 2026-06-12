@@ -58,6 +58,16 @@ Escopo: código, testes, infra, endpoints, configuração, API keys, observabili
 | F-24 | Repository mistura persistência e scoring lexical (`score_book`) — responsabilidade de domínio/serviço | `repositories.py` |
 | F-25 | Sem CI/CD — pipeline descrito em DOCS/25 não existe | `.github/` ausente |
 
+## Achados adicionais do Bugbot (2026-06-11)
+
+| ID | Achado | Severidade | Status |
+|---|---|---|---|
+| F-26 | Anexos de outra sessão podiam ser vinculados a qualquer mensagem (`attach_to_message` sem checagem de sessão) | Alta | ✅ Corrigido na Sprint 1 (validação em `ChatService._validated_attachments`) |
+| F-27 | Falha do LLM deixava mensagem do usuário órfã e estourava exceção sem rollback | Média | ✅ Corrigido na Sprint 1 (mensagem assistant `status="failed"` com texto amigável) |
+| F-28 | `reasoning_effort` enviado para modelos não-reasoning (ex.: `gpt-4.1-mini`) | Média | ✅ Corrigido na Sprint 1 (`chat_model_kwargs` por família de modelo) |
+| F-29 | Import de livro `.pdf` decodifica bytes binários como UTF-8 (sem extração real de PDF) | Média | 📋 Backlog → MS-105 |
+| F-30 | Retry de envio sem sessão selecionada cria sessões duplicadas no frontend (`createSession` dentro da mutation) | Média | 📋 Backlog → MS-604 |
+
 ## Pontos fortes confirmados
 
 - Arquitetura em camadas limpa: routes → services → repositories → models (Clean Architecture pragmática).

@@ -21,23 +21,30 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
-| MS-001 | Primeiro commit + DOCS fora do .gitignore | `infra` `docs` | **P0** | 2 |
-| MS-003 | Lint zero + gate cobertura no Makefile | `testing` `backend` | **P0** | 1 |
-| MS-004 | Sanear .env (CHAT_GATEWAY, SECRET_KEY, HF key órfã) | `security` `infra` | **P0** | 2 |
-| MS-101 | Histórico multi-turn no LangChain | `ai` `feature` `backend` | **P0** | 5 |
-| MS-102 | Anexos como contexto da IA | `ai` `feature` `backend` | **P0** | 8 |
+| MS-604 | Retry duplica sessões no frontend (Bugbot F-30) | `bug` `frontend` | P1 | 2 |
+| MS-105 | Extração real de texto de PDF (Bugbot F-29) | `bug` `backend` | P2 | 3 |
 
 ### 🔨 In Progress
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
-| — | *(vazio — aguardando início da Sprint 1)* | | | |
+| — | *(vazio)* | | | |
 
 ### 🔍 Review/QA
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
 | — | *(vazio)* | | | |
+
+### ✔️ Done — Sprint 1 (2026-06-11)
+
+| Card | Título | Labels |
+|---|---|---|
+| MS-001 | Primeiro commit + DOCS fora do .gitignore | `infra` `docs` |
+| MS-003 | Lint zero + gate de cobertura no Makefile | `testing` `backend` |
+| MS-004 | Sanear .env (CHAT_GATEWAY, SECRET_KEY, HF key órfã removida) | `security` `infra` |
+| MS-101 | Histórico multi-turn (TDD: 8 novos testes) | `ai` `feature` `backend` |
+| MS-102 | Anexos como contexto da IA + validação de sessão (F-26/27/28) | `ai` `feature` `backend` |
 
 ### ✔️ Done (entregue até a auditoria de 2026-06-11)
 

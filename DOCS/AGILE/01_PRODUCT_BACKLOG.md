@@ -65,6 +65,12 @@ Formato: ID, história, critérios de aceite, labels, prioridade, estimativa (st
 - **Aceite (TDD):** `POST /chat/messages` passa a suportar modo stream (ou novo fluxo) que conecta `ChatOpenAI.stream()` ao SSE; gateway local também streama (para testes); mensagem persistida ao final; contrato OpenAPI atualizado.
 - Labels: `ai`, `feature`, `backend` · Prioridade: **P1** · Estimativa: **8**
 
+### MS-105 — Extração real de texto de PDF
+> **Como** usuário, **quero** que uploads `.pdf` tenham o texto extraído de verdade, **para** importar livros e anexar PDFs ao chat com conteúdo legível. (F-29, Bugbot)
+
+- **Aceite (TDD):** `pypdf` (ou similar) extrai texto de PDF no import e em `read_attachment_text`; PDF sem texto (escaneado) retorna aviso claro; teste com PDF fixture.
+- Labels: `bug`, `backend` · Prioridade: **P2** · Estimativa: **3**
+
 ### MS-104 — Importação de livro com LLM de verdade
 > **Como** usuário, **quero** que a "importação com IA" use o LLM quando disponível, **para** extrair metadados de textos não estruturados. (F-15)
 
@@ -168,6 +174,12 @@ Formato: ID, história, critérios de aceite, labels, prioridade, estimativa (st
 
 - **Aceite:** `chat.py` e `attachments.py` deixam de acessar repositório/model direto; scoring lexical movido de `repositories.py` para service/domínio; testes existentes verdes.
 - Labels: `refactor`, `backend` · Prioridade: **P2** · Estimativa: **3**
+
+### MS-604 — Corrigir retry que duplica sessões no frontend
+> **Como** usuário, **quero** que reenviar uma mensagem que falhou não crie outra conversa, **para** não poluir meu histórico. (F-30, Bugbot)
+
+- **Aceite (TDD):** `selectedSessionId` atualizado assim que a sessão é criada (não só em `onSuccess`); retry reusa a mesma sessão; teste Vitest do fluxo de falha + retry.
+- Labels: `bug`, `frontend` · Prioridade: **P1** · Estimativa: **2**
 
 ### MS-603 — SSE/streaming consumido no frontend
 > **Como** usuário, **quero** ver a resposta aparecer progressivamente na UI, **para** uma experiência de chat moderna. (F-04, F-20; depende de MS-103)
