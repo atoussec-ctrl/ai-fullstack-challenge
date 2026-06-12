@@ -80,7 +80,10 @@ def paths() -> dict[str, object]:
                                     "file": {
                                         "type": "string",
                                         "format": "binary",
-                                        "description": ".txt, .md, .json or .pdf containing title, author, category, year and summary.",
+                                        "description": (
+                                            ".txt, .md, .json or .pdf containing "
+                                            "title, author, category, year and summary."
+                                        ),
                                     }
                                 },
                             }
@@ -324,7 +327,11 @@ def components() -> dict[str, object]:
                 }
             ),
             "FeedbackRequest": object_schema(
-                {"score": {"type": "number", "minimum": -1, "maximum": 1}, "key": string(), "comment": string()},
+                {
+                    "score": {"type": "number", "minimum": -1, "maximum": 1},
+                    "key": string(),
+                    "comment": string(),
+                },
                 required=["score"],
             ),
             "FeedbackResponse": object_schema(
