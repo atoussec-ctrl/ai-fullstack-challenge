@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from app.env_loader import ENV_FILE, PROJECT_ROOT, load_project_env
 
 
 def test_project_root_points_to_repository_root():
-    assert PROJECT_ROOT.name == "mindsight"
     assert ENV_FILE == PROJECT_ROOT / ".env"
+    assert (PROJECT_ROOT / "backend" / "app" / "env_loader.py").is_file()
+    assert (PROJECT_ROOT / ".env.example").is_file()
 
 
 def test_load_project_env_normalizes_placeholder_langsmith_key(monkeypatch, tmp_path):
