@@ -47,6 +47,7 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 | MS-007 | Build do Docker Compose corrigido (pnpm v11 allowBuilds + COPY do workspace) (F-31) | `bug` `infra` `frontend` |
 | MS-009 | Seed idempotente + backup/restore do SQLite (preserva dados ao atualizar UI) | `infra` `backend` |
 | MS-106 | DeepSeek V4 via HF Inference API mantendo OpenAI — validado ao vivo (F-33 fix incluso) | `ai` `feature` `backend` `frontend` |
+| MS-605 | Abas Python Assistant/Configurações funcionais + filtros (categoria/autor) e layout grid/carrossel na Biblioteca | `frontend` `feature` |
 
 ### ✔️ Done — Sprint 1 (2026-06-11)
 
