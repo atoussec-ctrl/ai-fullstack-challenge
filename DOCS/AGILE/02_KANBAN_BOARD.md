@@ -21,7 +21,6 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
-| MS-106 | DeepSeek V4 via HF Inference API (mantendo OpenAI) | `ai` `feature` `backend` `frontend` | **P0** | 5 |
 | MS-008 | Migrations versionadas (Flask-Migrate/Alembic) | `infra` `backend` `refactor` | P1 | 5 |
 | MS-006 | Pipeline CI com quality gates | `infra` `testing` | P1 | 5 |
 | MS-103 | Streaming SSE real do LLM | `ai` `feature` `backend` | P1 | 8 |
@@ -47,6 +46,7 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 | MS-105 | Extração real de texto de PDF (pypdf) no import e em anexos do chat (F-29) | `bug` `backend` |
 | MS-007 | Build do Docker Compose corrigido (pnpm v11 allowBuilds + COPY do workspace) (F-31) | `bug` `infra` `frontend` |
 | MS-009 | Seed idempotente + backup/restore do SQLite (preserva dados ao atualizar UI) | `infra` `backend` |
+| MS-106 | DeepSeek V4 via HF Inference API mantendo OpenAI — validado ao vivo (F-33 fix incluso) | `ai` `feature` `backend` `frontend` |
 
 ### ✔️ Done — Sprint 1 (2026-06-11)
 

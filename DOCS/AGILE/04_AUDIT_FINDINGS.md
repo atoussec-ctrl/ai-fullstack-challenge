@@ -68,6 +68,8 @@ Escopo: código, testes, infra, endpoints, configuração, API keys, observabili
 | F-29 | Import de livro `.pdf` decodifica bytes binários como UTF-8 (sem extração real de PDF) | Média | ✅ Corrigido (MS-105: `extract_pdf_text` com pypdf no import e em anexos) |
 | F-30 | Retry de envio sem sessão selecionada cria sessões duplicadas no frontend (`createSession` dentro da mutation) | Média | ✅ Corrigido (MS-604: `setSelectedSessionId` logo após criar a sessão) |
 | F-31 | `docker compose up --build` falha no frontend: pnpm v11 retorna `ERR_PNPM_IGNORED_BUILDS` (esbuild) e o Dockerfile não copiava o `pnpm-workspace.yaml` | Alta | ✅ Corrigido (MS-007: `allowBuilds: {esbuild: true}` no workspace + COPY no Dockerfile; validado `docker compose up` com containers healthy) |
+| F-33 | Endpoint de feedback estourava 500 quando o LangSmith recusava a chamada (descoberto em teste ao vivo com chave 403) | Média | ✅ Corrigido (`record_feedback` degrada com `recorded=false` + motivo, HTTP 202) |
+| F-34 | Chave LangSmith (`LANGCHAIN_API_KEY`, prefixo lsv2_) recusada com **403 Forbidden** pela API — traces e feedback não chegam ao LangSmith | Média | ⚠️ Ação do usuário: gerar chave válida em smith.langchain.com (a aplicação degrada graciosamente enquanto isso) |
 | F-32 | Sem migrations versionadas: schema criado via `db.create_all()` + `_ensure_sqlite_schema()` (ALTER TABLE ad-hoc). Mudanças de schema mais complexas (renomear/remover coluna, constraints) ficam arriscadas | Média | 📋 Backlog → MS-008 (mitigado por seed idempotente + backup/restore — MS-009) |
 
 ## Pontos fortes confirmados
