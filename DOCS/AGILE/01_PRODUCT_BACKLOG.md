@@ -89,6 +89,19 @@ Formato: ID, história, critérios de aceite, labels, prioridade, estimativa (st
 - **Aceite (TDD):** `pypdf` (ou similar) extrai texto de PDF no import e em `read_attachment_text`; PDF sem texto (escaneado) retorna aviso claro; teste com PDF fixture.
 - Labels: `bug`, `backend` · Prioridade: **P2** · Estimativa: **3**
 
+### MS-106 — DeepSeek V4 via Hugging Face Inference API como LLM padrão
+> **Como** usuário, **quero** respostas reais geradas pelo DeepSeek V4 (via HF Inference Providers), **para** ter um chat de verdade sem depender da OpenAI — mantendo OpenAI como opção. (Motivado pela análise de logs: perguntas reais como "como criar variáveis em python?" caem na resposta genérica do gateway local.)
+
+- **Contexto técnico:** o router do HF é compatível com a API da OpenAI (`base_url=https://router.huggingface.co/v1`, `api_key=HF_TOKEN`, modelo `deepseek-ai/DeepSeek-V4-Flash` ou `-Pro`, sufixo `:provider` opcional). Reutilizar o `LangChainOpenAIGateway` (ChatOpenAI com `base_url`) em vez de criar SDK novo.
+- **Aceite (TDD):**
+  - `CHAT_GATEWAY` aceita `huggingface`; `auto` prioriza HF → OpenAI → local;
+  - novas envs `HUGGINGFACE_API_KEY`, `HF_CHAT_MODEL` (default `deepseek-ai/DeepSeek-V4-Flash`) e `HF_BASE_URL` documentadas no `.env.example`;
+  - `chat_model_kwargs` por família: DeepSeek usa `temperature=1.0` (recomendação oficial) e nunca `reasoning_effort`; OpenAI mantém comportamento atual;
+  - seleção por modelo no payload: `model` começando com `deepseek-ai/` roteia para o gateway HF;
+  - frontend lista DeepSeek V4 Flash/Pro no seletor de modelos;
+  - testes unitários de seleção de gateway e kwargs sem rede; LangSmith tracing preservado.
+- Labels: `ai`, `feature`, `backend`, `frontend` · Prioridade: **P0** · Estimativa: **5**
+
 ### MS-104 — Importação de livro com LLM de verdade
 > **Como** usuário, **quero** que a "importação com IA" use o LLM quando disponível, **para** extrair metadados de textos não estruturados. (F-15)
 

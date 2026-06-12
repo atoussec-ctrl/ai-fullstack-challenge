@@ -21,6 +21,7 @@ Política: WIP limit 2/pessoa em In Progress; item só entra em Ready com DoR co
 
 | Card | Título | Labels | Prioridade | Pts |
 |---|---|---|---|---|
+| MS-106 | DeepSeek V4 via HF Inference API (mantendo OpenAI) | `ai` `feature` `backend` `frontend` | **P0** | 5 |
 | MS-008 | Migrations versionadas (Flask-Migrate/Alembic) | `infra` `backend` `refactor` | P1 | 5 |
 | MS-006 | Pipeline CI com quality gates | `infra` `testing` | P1 | 5 |
 | MS-103 | Streaming SSE real do LLM | `ai` `feature` `backend` | P1 | 8 |
