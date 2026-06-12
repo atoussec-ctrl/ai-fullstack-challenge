@@ -35,7 +35,7 @@ Escopo: código, testes, infra, endpoints, configuração, API keys, observabili
 |---|---|---|
 | F-07 | `HUGGINGFACE_API_KEY` real presente no `.env` mas **não usada em lugar nenhum do código** (secret órfã; `.env` está no `.gitignore`, ok, mas deve ser removida ou usada) | `.env` vs grep no código |
 | F-08 | `CHAT_GATEWAY` e `SECRET_KEY` ausentes do `.env.example` — impossível ativar OpenAI sem ler código | `.env.example` |
-| F-09 | Dockerfile do backend não instala `requirements-ai.txt` → LangChain/OpenAI indisponíveis no container | `backend/Dockerfile`, `docker-compose.yml` |
+| F-09 | ~~Dockerfile do backend não instala LangChain → gateway real indisponível no container~~ ✅ Corrigido: `langchain-openai` movido para `requirements.txt` (core), pois o DeepSeek via HF é a experiência padrão; validado chat real dentro do Docker | `backend/requirements.txt` |
 | F-10 | Observabilidade documentada mas não implementada: sem logs estruturados, sem métricas, `LOG_LEVEL` sem efeito, request ID só ecoado se enviado | `DOCS/24` vs código |
 | F-11 | Pirâmide de testes invertida no backend: os 13 testes são de integração HTTP; **não há testes unitários puros** de services/repositories | `backend/tests/` |
 | F-12 | E2E Playwright roda com **API 100% mockada** — nenhum teste valida frontend + backend reais juntos | `frontend/e2e/chat.spec.ts` |
