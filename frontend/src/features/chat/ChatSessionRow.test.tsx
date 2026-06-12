@@ -103,13 +103,20 @@ describe('ChatSessionRow', () => {
     const onDisarm = vi.fn()
     const { container } = renderRow({ isArmed: true, onDelete, onPin, onDisarm })
 
+    interface ReactFiberNode {
+      memoizedProps?: {
+        onDragEnd?: (event: unknown, info: { offset: { x: number } }) => void
+      }
+      return?: ReactFiberNode
+    }
+
     // Access the React fiber to get the onDragEnd prop directly
     const motionDiv = container.querySelector('div[style]') as HTMLElement & {
-      _reactFiber?: { return?: { memoizedProps?: { onDragEnd?: Function } } }
+      _reactFiber?: ReactFiberNode
     }
 
     // Walk up the fiber tree to find the motion.div with onDragEnd
-    let fiber = (motionDiv as any)._reactFiber
+    let fiber: ReactFiberNode | undefined = motionDiv._reactFiber
     while (fiber && !fiber.memoizedProps?.onDragEnd) {
       fiber = fiber.return
     }
@@ -135,8 +142,17 @@ describe('ChatSessionRow', () => {
     const onDisarm = vi.fn()
     const { container } = renderRow({ isArmed: false, onDelete, onPin, onDisarm })
 
-    const motionDiv = container.querySelector('div[style]') as HTMLElement
-    let fiber = (motionDiv as any)._reactFiber
+    interface ReactFiberNode {
+      memoizedProps?: {
+        onDragEnd?: (event: unknown, info: { offset: { x: number } }) => void
+      }
+      return?: ReactFiberNode
+    }
+
+    const motionDiv = container.querySelector('div[style]') as HTMLElement & {
+      _reactFiber?: ReactFiberNode
+    }
+    let fiber: ReactFiberNode | undefined = motionDiv._reactFiber
     while (fiber && !fiber.memoizedProps?.onDragEnd) {
       fiber = fiber.return
     }

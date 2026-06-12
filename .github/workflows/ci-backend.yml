@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   lint:
-    name: 🔍 Ruff Lint & Format Check
+    name: "🔍 Ruff Lint & Format Check"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,7 +41,7 @@ jobs:
         run: ruff format --check .
 
   test:
-    name: 🧪 Pytest & Coverage
+    name: "🧪 Pytest & Coverage"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
