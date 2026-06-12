@@ -40,8 +40,8 @@ function CodeBlock({
           Copiar
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 text-sm">
-        <code className={className}>{children}</code>
+      <pre className="overflow-x-auto p-6 text-sm">
+        <code className={`${className} p-4`}>{children}</code>
       </pre>
     </div>
   )
