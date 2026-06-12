@@ -80,7 +80,7 @@ backend-test:
 	cd backend && .venv/bin/pytest -v --tb=short
 
 backend-test-cov:
-	cd backend && .venv/bin/pytest --cov=app --cov-report=term-missing --cov-fail-under=80 -v
+	cd backend && .venv/bin/pytest --cov=app --cov-report=term-missing --cov-fail-under=85 -v
 
 frontend-test:
 	cd frontend && pnpm test
