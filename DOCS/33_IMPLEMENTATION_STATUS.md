@@ -51,12 +51,11 @@ Resultado local da auditoria:
 
 ## Pendencias mais relevantes
 
-1. Tornar upload de anexo + envio de mensagem transacional (hoje sao duas chamadas HTTP separadas sem compensacao).
-2. Adicionar timeout/retry e rate limit no gateway de IA.
-3. Streaming real do provedor (hoje a rota SSE reproduz uma mensagem ja persistida).
-4. Refatorar `App.tsx` (1611 linhas, fora do escopo do gate de cobertura) por dominios.
-5. Conectar a busca semantica aos livros reais (hoje indexa 6 documentos fixos).
-6. Acessibilidade do drawer mobile (`role=dialog`, `aria-modal`, focus trap, Escape).
-7. Gerar `request_id` quando ausente e estruturar logs para correlacao.
+1. Adicionar timeout/retry e rate limit no gateway de IA.
+2. Streaming real do provedor (hoje a rota SSE reproduz uma mensagem ja persistida).
+3. Refatorar `App.tsx` (1611 linhas, fora do escopo do gate de cobertura) por dominios.
+4. Conectar a busca semantica aos livros reais (hoje indexa 6 documentos fixos).
+5. Acessibilidade do drawer mobile (`role=dialog`, `aria-modal`, focus trap, Escape).
+6. Gerar `request_id` quando ausente e estruturar logs para correlacao.
 
-Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao.
+Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao, compensacao de anexos orfaos apos falha no envio da mensagem.

@@ -39,6 +39,7 @@ import {
   validateFiles,
 } from '@/features/chat/attachments'
 import { ChatSessionRow } from '@/features/chat/ChatSessionRow'
+import { sendMessageWithAttachments } from '@/features/chat/sendMessageWithAttachments'
 import { ThinkingIndicator } from '@/features/chat/ThinkingIndicator'
 import { useAudioRecorder } from '@/features/chat/useAudioRecorder'
 import { useSessionSwipeGesture } from '@/features/chat/useSessionSwipeGesture'
@@ -52,7 +53,6 @@ import {
   listSessions,
   sendMessage,
   updateSessionPin,
-  uploadAttachment,
 } from '@/shared/api/client'
 import type {
   AttachmentKind,
@@ -165,23 +165,14 @@ function App() {
         queryClient.invalidateQueries({ queryKey: ['sessions'] })
       }
 
-      const uploaded = []
-      for (const attachment of attachments) {
-        uploaded.push(
-          await uploadAttachment(session, attachment.file, attachment.kind, signal),
-        )
-      }
-
-      return sendMessage(
-        {
-          session_id: session,
-          content: trimmed,
-          thinking_mode: thinkingMode,
-          attachment_ids: uploaded.map(attachment => attachment.id),
-          model,
-        },
+      return sendMessageWithAttachments({
+        sessionId: session,
+        content: trimmed,
+        thinkingMode,
+        attachments,
+        model,
         signal,
-      )
+      })
     },
     onMutate: ({ content, attachments }) => {
       abortControllerRef.current = new AbortController()

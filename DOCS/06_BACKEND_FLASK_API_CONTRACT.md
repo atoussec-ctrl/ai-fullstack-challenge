@@ -44,6 +44,7 @@ Campos temporais sao retornados em ISO 8601. IDs sao strings geradas via UUID co
 | POST | `/chat/messages/{assistant_message_id}/feedback` | Envia feedback para LangSmith, se habilitado. |
 | POST | `/attachments` | Upload de anexo para uma sessao. |
 | GET | `/attachments/{attachment_id}` | Download de anexo. |
+| DELETE | `/attachments/{attachment_id}` | Remove um anexo ainda nao vinculado a uma mensagem (cleanup apos falha no envio). Rejeita anexo ja vinculado. |
 | POST | `/semantic-search` | Busca semantica local demonstrativa. |
 
 ## Modelos principais

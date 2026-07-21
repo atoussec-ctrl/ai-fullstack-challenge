@@ -230,7 +230,22 @@ def paths() -> dict[str, object]:
                     "200": {"description": "Attachment bytes"},
                     "404": json_response("ErrorResponse"),
                 },
-            }
+            },
+            "delete": {
+                "tags": ["Attachments"],
+                "summary": "Delete an attachment that was never linked to a message",
+                "description": (
+                    "Cleanup for the upload-then-send flow: removes an attachment "
+                    "still awaiting a message. Rejects attachments already attached "
+                    "to a message — use this only to compensate a failed send."
+                ),
+                "parameters": [path_param("attachment_id", "Attachment id")],
+                "responses": {
+                    "204": {"description": "Attachment deleted"},
+                    "400": json_response("ErrorResponse"),
+                    "404": json_response("ErrorResponse"),
+                },
+            },
         },
         "/api/v1/semantic-search": {
             "post": {
