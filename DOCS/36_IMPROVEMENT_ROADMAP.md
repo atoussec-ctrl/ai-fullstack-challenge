@@ -2,14 +2,16 @@
 
 Este roadmap prioriza reducao de risco antes de features novas.
 
+Atualizado em 2026-07-21: os tres primeiros itens do P0 foram fechados (ver `DOCS/33_IMPLEMENTATION_STATUS.md`). Ownership por usuario segue fora do escopo — o MVP e single-tenant por decisao de produto (`DOCS/01_PRODUCT_VISION.md`), entao autenticacao minima por API key (sem contas) fechou o risco real de exposicao sem multiusuario.
+
 ## P0 - Fechar riscos de exposicao
 
-| Item | Resultado esperado | Criterio de aceite |
-| --- | --- | --- |
-| Usar WSGI em producao | Container de producao nao usa servidor dev Flask. | Dockerfile/compose de producao usam WSGI. |
-| Validar config de producao | Startup falha com secrets/placeholders inseguros. | Teste cobre `APP_ENV=production` com `SECRET_KEY` invalida. |
-| Autenticacao minima | API deixa de ser publica para dados sensiveis. | Endpoints de chat/anexos/livros exigem credencial. |
-| Ownership | Usuario so acessa seus dados. | Testes provam 403/404 para recurso de outro usuario. |
+| Item | Resultado esperado | Criterio de aceite | Status |
+| --- | --- | --- | --- |
+| Usar WSGI em producao | Container de producao nao usa servidor dev Flask. | Dockerfile/compose de producao usam WSGI. | Concluido — Gunicorn com `--preload`/`post_fork`, verificado via build+run real. |
+| Validar config de producao | Startup falha com secrets/placeholders inseguros. | Teste cobre `APP_ENV=production` com `SECRET_KEY` invalida. | Concluido — cobre `SECRET_KEY` e `API_KEY`. |
+| Autenticacao minima | API deixa de ser publica para dados sensiveis. | Endpoints de chat/anexos/livros exigem credencial. | Concluido — segredo compartilhado via `API_KEY`/`Authorization: Bearer`. |
+| Ownership | Usuario so acessa seus dados. | Testes provam 403/404 para recurso de outro usuario. | Fora de escopo — MVP e single-tenant por decisao de produto documentada. |
 
 Fluxo alvo de autorizacao:
 
@@ -25,13 +27,13 @@ flowchart TD
 
 ## P1 - Contrato, dados e operacao
 
-| Item | Resultado esperado | Criterio de aceite |
-| --- | --- | --- |
-| Alembic/Flask-Migrate | Schema versionado. | CI aplica migrations em banco limpo. |
-| Manter enum de status alinhado | Backend, OpenAPI e TS usam `failed`. | Teste de contrato cobre o valor `failed`. |
-| Paginacao | Listagens previsiveis. | Endpoints aceitam `limit` e cursor/page com maximo. |
-| Cleanup de uploads orfaos | Rotina remove anexos que falharam antes de vincular mensagem. | Job/endpoint interno testado com arquivos orfaos. |
-| Transacao de anexos | Envio com anexos nao deixa orfaos. | Falha de `sendMessage` aciona compensacao ou endpoint unico. |
+| Item | Resultado esperado | Criterio de aceite | Status |
+| --- | --- | --- | --- |
+| Alembic/Flask-Migrate | Schema versionado. | CI aplica migrations em banco limpo. | Concluido. |
+| Manter enum de status alinhado | Backend, OpenAPI e TS usam `failed`. | Teste de contrato cobre o valor `failed`. | Concluido. |
+| Paginacao | Listagens previsiveis. | Endpoints aceitam `limit` e cursor/page com maximo. | Concluido. |
+| Cleanup de uploads orfaos | Rotina remove anexos que falharam antes de vincular mensagem. | Job/endpoint interno testado com arquivos orfaos. | Concluido (remocao fisica ao deletar sessao). |
+| Transacao de anexos | Envio com anexos nao deixa orfaos. | Falha de `sendMessage` aciona compensacao ou endpoint unico. | Aberto. |
 
 Fluxo alvo para mensagem com anexos:
 

@@ -18,6 +18,10 @@ class NotFoundError(Exception):
     """Raised when a requested resource does not exist."""
 
 
+class AuthenticationError(Exception):
+    """Raised when API credentials are missing or invalid."""
+
+
 class ValidationError(ValueError):
     """Raised when request input fails validation."""
 

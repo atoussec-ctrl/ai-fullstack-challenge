@@ -10,9 +10,10 @@ from flask_migrate import stamp, upgrade
 from sqlalchemy import inspect as sa_inspect
 from werkzeug.exceptions import HTTPException
 
-from app.config import config_by_name
-from app.errors import NotFoundError, ValidationError
+from app.config import assert_production_config_is_safe, config_by_name
+from app.errors import AuthenticationError, NotFoundError, ValidationError
 from app.extensions import cors, db, migrate
+from app.security import register_api_key_guard
 from app.utils.http import error_response
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
@@ -33,6 +34,8 @@ def create_app(config_name: str | None = None) -> Flask:
 
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name])
+    if config_name == "production":
+        assert_production_config_is_safe(app.config)
 
     db.init_app(app)
     migrate.init_app(app, db, directory=str(MIGRATIONS_DIR))
@@ -40,6 +43,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     _register_blueprints(app)
     _register_error_handlers(app)
+    register_api_key_guard(app)
 
     @app.route("/health")
     def health():  # type: ignore[return]
@@ -100,6 +104,14 @@ def _register_error_handlers(app: Flask) -> None:
             code=error.name.replace(" ", "_").upper(),
             message=error.description,
             status_code=error.code or 500,
+        )
+
+    @app.errorhandler(AuthenticationError)
+    def handle_authentication_error(error: AuthenticationError):  # type: ignore[no-untyped-def]
+        return error_response(
+            code="UNAUTHORIZED",
+            message=str(error),
+            status_code=401,
         )
 
     @app.errorhandler(NotFoundError)

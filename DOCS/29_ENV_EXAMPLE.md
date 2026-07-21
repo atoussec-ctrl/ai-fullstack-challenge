@@ -10,8 +10,9 @@ As variaveis ficam em `.env` na raiz do projeto. O backend carrega esse arquivo 
 | `LOG_LEVEL` | `INFO` | Existe no template, mas ainda nao e aplicado globalmente. |
 | `FLASK_DEBUG` | `false` | Liga o debug server apenas quando explicitamente `true` em `backend/run.py`. |
 | `SECRET_KEY` | valor forte | Chave de assinatura Flask. Obrigatoria em producao. |
+| `API_KEY` | valor forte | Segredo compartilhado exigido no header `Authorization: Bearer <valor>` para toda a API, exceto `/health`. Vazio = API aberta (padrao de dev local). |
 
-Recomendacao: em producao, falhar startup se `SECRET_KEY` estiver vazio, placeholder ou default.
+Em `APP_ENV=production`, o startup falha (`InsecureConfigurationError`) se `SECRET_KEY` ou `API_KEY` estiverem vazios ou forem um placeholder conhecido (`replace-me`, `changeme`, `change-me`, ou o default de dev). Ver `app/config.py::assert_production_config_is_safe`.
 
 ## Banco de dados
 
@@ -78,3 +79,4 @@ Recomendacoes para producao:
 | `VITE_API_PROXY_TARGET` | `http://localhost:5000` | Proxy do Vite em desenvolvimento. |
 | `VITE_APP_NAME` | `MindSight AI` | Nome exibido na UI. |
 | `VITE_DEFAULT_THINKING_MODE` | `balanced` | Modo inicial do chat. |
+| `VITE_API_KEY` | valor forte | Deve ser igual ao `API_KEY` do backend quando este estiver configurado; enviado como `Authorization: Bearer` em toda chamada. |

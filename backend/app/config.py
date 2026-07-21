@@ -1,6 +1,7 @@
 """MindSight AI configuration."""
 
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 from app.env_loader import load_project_env
@@ -84,6 +85,12 @@ class Config:
     API_VERSION = "v1"
     OPENAPI_VERSION = "3.0.3"
 
+    # Shared-secret auth. Empty (the default) leaves the API open — matches
+    # this project's "no external key required" local-dev goal. Setting it
+    # activates the before_request gate in app/security.py; production
+    # startup then requires it via assert_production_config_is_safe below.
+    API_KEY: str = os.getenv("API_KEY", "")
+
 
 class DevelopmentConfig(Config):
     """Development-specific settings."""
@@ -105,6 +112,7 @@ class TestingConfig(Config):
     UPLOAD_DIR: str = "/tmp/mindsight-test-uploads"
     FAISS_INDEX_PATH: str = "/tmp/mindsight-test-faiss.index"
     WTF_CSRF_ENABLED: bool = False
+    API_KEY: str = ""
 
 
 class ProductionConfig(Config):
@@ -118,3 +126,29 @@ config_by_name: dict[str, type[Config]] = {
     "testing": TestingConfig,
     "production": ProductionConfig,
 }
+
+# Values that must never reach a production boot — either an empty secret or
+# one of the placeholders this project's own .env.example / docs suggest as
+# a starting point (e.g. SECRET_KEY's own class default above).
+INSECURE_PLACEHOLDER_VALUES = frozenset(
+    {"", "replace-me", "changeme", "change-me", "dev-secret-key-change-me"}
+)
+
+
+class InsecureConfigurationError(RuntimeError):
+    """Raised when APP_ENV=production would boot with a guessable secret."""
+
+
+def assert_production_config_is_safe(app_config: Mapping[str, object]) -> None:
+    """Fail fast instead of silently serving production traffic with a
+    guessable SECRET_KEY or a fully public API (no API_KEY configured)."""
+    if app_config.get("SECRET_KEY", "") in INSECURE_PLACEHOLDER_VALUES:
+        raise InsecureConfigurationError(
+            "SECRET_KEY não pode usar o valor padrão de desenvolvimento em produção. "
+            "Defina um segredo real via variável de ambiente."
+        )
+    if app_config.get("API_KEY", "") in INSECURE_PLACEHOLDER_VALUES:
+        raise InsecureConfigurationError(
+            "API_KEY é obrigatório em produção — sem ele, a API fica totalmente "
+            "pública. Defina um segredo real via variável de ambiente."
+        )

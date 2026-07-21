@@ -25,11 +25,20 @@ function parseApiError(
   return message
 }
 
+// Mirrors the backend's optional shared-secret gate (app/security.py): unset
+// by default so local dev and CI stay open, opt-in via VITE_API_KEY when a
+// deployment configures API_KEY on the server.
+function authHeaders(): HeadersInit {
+  const apiKey = import.meta.env.VITE_API_KEY
+  return apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...authHeaders(),
       ...init?.headers,
     },
   })
@@ -86,6 +95,7 @@ export function createSession(title = 'Nova conversa') {
 export async function deleteSession(sessionId: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}`, {
     method: 'DELETE',
+    headers: { ...authHeaders() },
   })
 
   if (!response.ok) {

@@ -10,6 +10,8 @@ Analise estatica e verificacoes locais do monorepo:
 
 Nao foram aplicadas correcoes de codigo nesta auditoria; o objetivo foi documentar melhorias, gaps e fixes recomendados.
 
+**Atualizacao 2026-07-21:** os achados 1, 2 (autenticacao minima, sem ownership — ver `DOCS/01_PRODUCT_VISION.md`), 3, 5, 7, 9 e 11 foram corrigidos nas fases seguintes. Ver `DOCS/33_IMPLEMENTATION_STATUS.md` e `DOCS/36_IMPROVEMENT_ROADMAP.md` para o estado atual; este documento permanece como registro historico da auditoria original.
+
 ## Achados criticos/altos
 
 ### 1. Servidor Flask precisa de perfil de producao

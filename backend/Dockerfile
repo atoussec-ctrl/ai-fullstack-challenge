@@ -14,10 +14,12 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY migrations ./migrations
 COPY run.py ./run.py
+COPY gunicorn.conf.py ./gunicorn.conf.py
 
 RUN mkdir -p /app/storage/uploads
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+CMD ["gunicorn", "--preload", "--config", "gunicorn.conf.py", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "60", "run:app"]

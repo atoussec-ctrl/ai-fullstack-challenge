@@ -11,6 +11,9 @@ pypdf>=5.0
 # Gateway de chat real (OpenAI-compatible: OpenAI e router do Hugging Face/DeepSeek)
 langchain-openai>=1.3
 
+# Production WSGI server (replaces Flask's dev server in the container)
+gunicorn>=23.0
+
 # Dev/test
 pytest>=9.0
 pytest-cov>=7.0

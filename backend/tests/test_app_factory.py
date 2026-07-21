@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import inspect as sa_inspect
 
 from app import _apply_migrations, create_app
+from app.config import InsecureConfigurationError, ProductionConfig
 from app.extensions import db
 from app.models import Attachment, Book, ChatMessage, ChatSession
 
@@ -141,6 +142,43 @@ def test_apply_migrations_is_idempotent_once_already_stamped(app):
 
         inspector = sa_inspect(db.engine)
         assert inspector.has_table("alembic_version")
+
+
+def test_create_app_refuses_to_boot_in_production_with_placeholder_secret_key(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(ProductionConfig, "SECRET_KEY", "dev-secret-key-change-me")
+    monkeypatch.setattr(ProductionConfig, "API_KEY", "a-real-key")
+    monkeypatch.setattr(
+        ProductionConfig, "SQLALCHEMY_DATABASE_URI", f"sqlite:///{tmp_path / 'prod.db'}"
+    )
+
+    with pytest.raises(InsecureConfigurationError, match="SECRET_KEY"):
+        create_app("production")
+
+
+def test_create_app_refuses_to_boot_in_production_without_an_api_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(ProductionConfig, "SECRET_KEY", "a-real-secret")
+    monkeypatch.setattr(ProductionConfig, "API_KEY", "")
+    monkeypatch.setattr(
+        ProductionConfig, "SQLALCHEMY_DATABASE_URI", f"sqlite:///{tmp_path / 'prod.db'}"
+    )
+
+    with pytest.raises(InsecureConfigurationError, match="API_KEY"):
+        create_app("production")
+
+
+def test_create_app_boots_in_production_with_real_secrets_configured(tmp_path, monkeypatch):
+    monkeypatch.setattr(ProductionConfig, "SECRET_KEY", "a-real-secret")
+    monkeypatch.setattr(ProductionConfig, "API_KEY", "a-real-key")
+    monkeypatch.setattr(
+        ProductionConfig, "SQLALCHEMY_DATABASE_URI", f"sqlite:///{tmp_path / 'prod.db'}"
+    )
+    monkeypatch.setattr(ProductionConfig, "UPLOAD_DIR", str(tmp_path / "uploads"))
+
+    prod_app = create_app("production")
+
+    assert prod_app.config["API_KEY"] == "a-real-key"
 
 
 def test_apply_migrations_preserves_existing_rows_when_stamping(app):
