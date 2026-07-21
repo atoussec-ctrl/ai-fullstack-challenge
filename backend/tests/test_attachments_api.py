@@ -1,4 +1,8 @@
 from io import BytesIO
+from pathlib import Path
+
+from app.extensions import db
+from app.models import Attachment
 
 
 def test_upload_attachment_validates_and_hides_storage_path(client):
@@ -37,3 +41,137 @@ def test_upload_rejects_dangerous_extension(client):
 
     assert response.status_code == 400
     assert response.get_json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_upload_rejects_missing_file(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+
+    response = client.post(
+        "/api/v1/attachments",
+        data={"session_id": session_id},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]["field"] == "file"
+
+
+def test_upload_rejects_extension_mismatched_with_declared_kind(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+
+    response = client.post(
+        "/api/v1/attachments",
+        data={
+            "session_id": session_id,
+            "kind": "image",
+            "file": (BytesIO(b"nao e uma imagem"), "notas.txt"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]["field"] == "file"
+
+
+def test_upload_rejects_undetectable_kind(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+
+    response = client.post(
+        "/api/v1/attachments",
+        data={
+            "session_id": session_id,
+            "file": (BytesIO(b"binario desconhecido"), "arquivo.xyz"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]["field"] == "kind"
+
+
+def test_upload_rejects_missing_session_with_404(client):
+    response = client.post(
+        "/api/v1/attachments",
+        data={
+            "session_id": "sessao_inexistente",
+            "kind": "document",
+            "file": (BytesIO(b"conteudo"), "notas.txt"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 404
+    assert response.get_json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_upload_rejects_file_larger_than_configured_limit(client, app):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+    app.config["MAX_UPLOAD_SIZE_MB"] = 0  # qualquer arquivo não vazio excede 0MB
+
+    response = client.post(
+        "/api/v1/attachments",
+        data={
+            "session_id": session_id,
+            "kind": "document",
+            "file": (BytesIO(b"conteudo maior que zero bytes"), "grande.txt"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]["field"] == "file"
+
+
+def test_get_attachment_downloads_the_uploaded_file(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+    upload = client.post(
+        "/api/v1/attachments",
+        data={"session_id": session_id, "file": (BytesIO(b"print('hello')"), "example.py")},
+        content_type="multipart/form-data",
+    )
+    attachment_id = upload.get_json()["id"]
+
+    response = client.get(f"/api/v1/attachments/{attachment_id}")
+
+    assert response.status_code == 200
+    assert response.data == b"print('hello')"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert "example.py" in response.headers["Content-Disposition"]
+
+
+def test_get_attachment_returns_404_when_record_missing(client):
+    response = client.get("/api/v1/attachments/anexo_inexistente")
+
+    assert response.status_code == 404
+    body = response.get_json()
+    assert body["error"]["code"] == "NOT_FOUND"
+    assert body["error"]["message"] == "Anexo não encontrado."
+
+
+def test_get_attachment_returns_404_when_file_missing_from_disk(client, app):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+    upload = client.post(
+        "/api/v1/attachments",
+        data={"session_id": session_id, "file": (BytesIO(b"conteudo"), "nota.txt")},
+        content_type="multipart/form-data",
+    )
+    attachment_id = upload.get_json()["id"]
+
+    with app.app_context():
+        attachment = db.session.get(Attachment, attachment_id)
+        Path(attachment.storage_path).unlink()
+
+    response = client.get(f"/api/v1/attachments/{attachment_id}")
+
+    assert response.status_code == 404
+    body = response.get_json()
+    assert body["error"]["code"] == "NOT_FOUND"
+    assert body["error"]["message"] == "Arquivo do anexo não encontrado."

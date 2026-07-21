@@ -6,11 +6,16 @@ import os
 from pathlib import Path
 
 from flask import Flask, jsonify, request
+from flask_migrate import stamp, upgrade
+from sqlalchemy import inspect as sa_inspect
 from werkzeug.exceptions import HTTPException
 
 from app.config import config_by_name
-from app.extensions import cors, db
+from app.errors import NotFoundError, ValidationError
+from app.extensions import cors, db, migrate
 from app.utils.http import error_response
+
+MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -30,6 +35,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.config.from_object(config_by_name[config_name])
 
     db.init_app(app)
+    migrate.init_app(app, db, directory=str(MIGRATIONS_DIR))
     cors.init_app(app, origins=app.config["CORS_ALLOWED_ORIGINS"].split(","))
 
     _register_blueprints(app)
@@ -53,8 +59,19 @@ def create_app(config_name: str | None = None) -> Flask:
             database_path = Path(str(database_uri).removeprefix("sqlite:///"))
             database_path.parent.mkdir(parents=True, exist_ok=True)
         Path(app.config["UPLOAD_DIR"]).mkdir(parents=True, exist_ok=True)
-        db.create_all()
-        _ensure_sqlite_schema(app)
+
+        if app.config.get("TESTING"):
+            # In-memory, recreated per test — a full migration run adds
+            # nothing but latency here, and the DB never outlives the test.
+            db.create_all()
+        elif MIGRATIONS_DIR.exists():
+            _apply_migrations(app)
+        else:
+            # Bootstrapping only: migrations/ doesn't exist yet, which is
+            # only true while `flask db init` itself is being set up (it
+            # needs a working create_app() to run against). Never true once
+            # migrations/ is committed to the repo.
+            db.create_all()
 
     return app
 
@@ -85,6 +102,23 @@ def _register_error_handlers(app: Flask) -> None:
             status_code=error.code or 500,
         )
 
+    @app.errorhandler(NotFoundError)
+    def handle_not_found_error(error: NotFoundError):  # type: ignore[no-untyped-def]
+        return error_response(
+            code="NOT_FOUND",
+            message=str(error),
+            status_code=404,
+        )
+
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(error: ValidationError):  # type: ignore[no-untyped-def]
+        return error_response(
+            code="VALIDATION_ERROR",
+            message=str(error),
+            status_code=400,
+            details={"field": error.field} if error.field else {},
+        )
+
     @app.errorhandler(ValueError)
     def handle_value_error(error: ValueError):  # type: ignore[no-untyped-def]
         return error_response(
@@ -104,33 +138,26 @@ def _register_error_handlers(app: Flask) -> None:
         )
 
 
-def _ensure_sqlite_schema(app: Flask) -> None:
-    database_uri = str(app.config["SQLALCHEMY_DATABASE_URI"])
-    if not database_uri.startswith("sqlite:///"):
-        return
-    with db.engine.connect() as connection:
-        columns = {
-            row[1] for row in connection.exec_driver_sql("PRAGMA table_info(books)").fetchall()
-        }
-        if columns and "category" not in columns:
-            connection.exec_driver_sql(
-                "ALTER TABLE books ADD COLUMN category VARCHAR(120) NOT NULL DEFAULT 'Programação'"
-            )
-            connection.commit()
-        message_columns = {
-            row[1]
-            for row in connection.exec_driver_sql("PRAGMA table_info(chat_messages)").fetchall()
-        }
-        if message_columns and "trace_id" not in message_columns:
-            connection.exec_driver_sql("ALTER TABLE chat_messages ADD COLUMN trace_id VARCHAR(128)")
-            connection.commit()
-        session_columns = {
-            row[1]
-            for row in connection.exec_driver_sql("PRAGMA table_info(chat_sessions)").fetchall()
-        }
-        if session_columns and "pinned" not in session_columns:
-            connection.exec_driver_sql(
-                "ALTER TABLE chat_sessions ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0"
-            )
-            connection.exec_driver_sql("ALTER TABLE chat_sessions ADD COLUMN pinned_at DATETIME")
-            connection.commit()
+def _apply_migrations(app: Flask) -> None:
+    """Bring the schema up to date using real Alembic migrations.
+
+    Replaces the old db.create_all() + hand-rolled ALTER TABLE block, which
+    only ever worked for SQLite and had no version history or rollback path
+    — switching to Postgres would have silently left the schema stuck at
+    whatever db.create_all() produced on day one.
+
+    Handles the one-time transition for databases that predate Alembic: if
+    the tables already exist (created by the old code) but there's no
+    alembic_version table yet, the schema already matches this project's
+    baseline migration — that's what the old code kept it in sync with — so
+    it's stamped as up to date instead of re-running CREATE TABLE against
+    tables that already exist. Anything else just upgrades normally.
+    """
+    inspector = sa_inspect(db.engine)
+    schema_predates_alembic = inspector.has_table("chat_sessions") and not inspector.has_table(
+        "alembic_version"
+    )
+    if schema_predates_alembic:
+        stamp()
+    else:
+        upgrade()

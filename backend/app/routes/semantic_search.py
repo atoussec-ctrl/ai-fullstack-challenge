@@ -12,10 +12,9 @@ semantic_search_bp = Blueprint("semantic_search", __name__)
 def semantic_search():
     payload = request.get_json(silent=True) or {}
     try:
-        results = SemanticSearchService().search(
-            query=str(payload.get("query", "")),
-            k=int(payload.get("k", 3)),
-        )
-    except (TypeError, ValueError) as exc:
-        return validation_error(str(exc))
+        k = int(payload.get("k", 3))
+    except (TypeError, ValueError):
+        return validation_error("Campo k deve ser numérico.", "k")
+
+    results = SemanticSearchService().search(query=str(payload.get("query", "")), k=k)
     return jsonify({"results": results})

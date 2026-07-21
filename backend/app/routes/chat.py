@@ -10,14 +10,15 @@ from flask import Blueprint, Response, jsonify, request
 from app.repositories import ChatRepository
 from app.services.chat import ChatService
 from app.services.observability import record_feedback
-from app.utils.http import error_response, validation_error
+from app.utils.http import error_response, parse_pagination, validation_error
 
 chat_bp = Blueprint("chat", __name__)
 
 
 @chat_bp.get("/chat/sessions")
 def list_sessions():
-    sessions = ChatRepository().list_sessions()
+    limit, offset = parse_pagination(request.args)
+    sessions = ChatRepository().list_sessions(limit=limit, offset=offset)
     return jsonify([session.to_dict() for session in sessions])
 
 
@@ -30,10 +31,7 @@ def create_session():
 
 @chat_bp.delete("/chat/sessions/<session_id>")
 def delete_session(session_id: str):
-    try:
-        ChatService().delete_session(session_id)
-    except ValueError as exc:
-        return error_response("NOT_FOUND", str(exc), 404)
+    ChatService().delete_session(session_id)
     return "", 204
 
 
@@ -45,10 +43,7 @@ def update_session(session_id: str):
     if not isinstance(payload["pinned"], bool):
         return validation_error("Campo pinned deve ser booleano.", "pinned")
 
-    try:
-        session = ChatService().update_session(session_id, pinned=payload["pinned"])
-    except ValueError as exc:
-        return error_response("NOT_FOUND", str(exc), 404)
+    session = ChatService().update_session(session_id, pinned=payload["pinned"])
     return jsonify(session.to_dict())
 
 
@@ -57,7 +52,9 @@ def list_messages(session_id: str):
     repository = ChatRepository()
     if not repository.get_session(session_id):
         return error_response("NOT_FOUND", "Sessão de chat não encontrada.", 404)
-    return jsonify([message.to_dict() for message in repository.list_messages(session_id)])
+    limit, offset = parse_pagination(request.args)
+    messages = repository.list_messages(session_id, limit=limit, offset=offset)
+    return jsonify([message.to_dict() for message in messages])
 
 
 @chat_bp.post("/chat/messages")
@@ -73,17 +70,14 @@ def create_message():
     if not session_id:
         return validation_error("Campo session_id é obrigatório.", "session_id")
 
-    try:
-        user_message, assistant_message = ChatService(
-            model=str(payload.get("model", "")).strip() or None
-        ).ask(
-            session_id=session_id,
-            content=str(payload.get("content", "")),
-            thinking_mode=str(payload.get("thinking_mode", "balanced")),
-            attachment_ids=attachment_ids,
-        )
-    except ValueError as exc:
-        return validation_error(str(exc))
+    user_message, assistant_message = ChatService(
+        model=str(payload.get("model", "")).strip() or None
+    ).ask(
+        session_id=session_id,
+        content=str(payload.get("content", "")),
+        thinking_mode=str(payload.get("thinking_mode", "balanced")),
+        attachment_ids=attachment_ids,
+    )
 
     return jsonify(
         {
@@ -102,12 +96,21 @@ def stream_message(assistant_message_id: str):
         return error_response("NOT_FOUND", "Mensagem não encontrada.", 404)
 
     def generate():
+        if message.status == "failed":
+            yield (
+                "event: error\n"
+                f"data: {json.dumps({'message_id': message.id, 'content': message.content})}\n\n"
+            )
+            return
         for token in message.content.split(" "):
             yield f"event: token\ndata: {json.dumps({'content': token + ' '})}\n\n"
             time.sleep(0.001)
         yield f"event: done\ndata: {json.dumps({'message_id': message.id})}\n\n"
 
-    return Response(generate(), mimetype="text/event-stream")
+    response = Response(generate(), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
 
 @chat_bp.post("/chat/messages/<assistant_message_id>/feedback")

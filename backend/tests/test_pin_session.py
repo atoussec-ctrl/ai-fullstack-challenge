@@ -31,3 +31,21 @@ def test_patch_session_returns_404_when_missing(client):
 
     assert response.status_code == 404
     assert response.get_json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_patch_session_requires_pinned_field(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+
+    response = client.patch(f"/api/v1/chat/sessions/{session_id}", json={})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["details"]["field"] == "pinned"
+
+
+def test_patch_session_rejects_non_boolean_pinned(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+
+    response = client.patch(f"/api/v1/chat/sessions/{session_id}", json={"pinned": "sim"})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["details"]["field"] == "pinned"

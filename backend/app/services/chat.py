@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 from flask import current_app, has_app_context
 
+from app.errors import NotFoundError, ValidationError
+from app.extensions import db
 from app.models import Attachment, Book
 from app.repositories import BookRepository, ChatRepository
 from app.services.observability import current_run_id, traceable_if_enabled
@@ -19,6 +22,7 @@ HISTORY_BOOK_FALLBACK_TURNS = 3
 GATEWAY_FAILURE_MESSAGE = (
     "Não foi possível gerar a resposta da IA agora. Tente novamente em instantes."
 )
+DEFAULT_CHAT_MAX_MESSAGE_CHARS = 8000
 
 # Modelos OpenAI de reasoning aceitam reasoning_effort, mas rejeitam temperature.
 REASONING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5")
@@ -212,6 +216,20 @@ def chat_max_output_tokens() -> int:
     return max(256, min(parsed, 128_000))
 
 
+def chat_max_message_chars() -> int:
+    """Resolve the per-message input cap from Flask config or env.
+
+    Protects against forwarding oversized prompts to the LLM — previously
+    only the global 10MB Flask MAX_CONTENT_LENGTH bounded a single message.
+    """
+    raw = _gateway_setting("CHAT_MAX_MESSAGE_CHARS", str(DEFAULT_CHAT_MAX_MESSAGE_CHARS))
+    try:
+        parsed = int(raw)
+    except ValueError:
+        parsed = DEFAULT_CHAT_MAX_MESSAGE_CHARS
+    return max(1, parsed)
+
+
 def extract_ai_message_content(response: object) -> str:
     """Normalize LangChain AIMessage content (str or block list) to plain text."""
     content = getattr(response, "content", response)
@@ -301,6 +319,21 @@ def _effective_api_key(value: str) -> str:
     return normalized
 
 
+def _allowed_chat_models(hf_model: str, openai_model: str) -> set[str]:
+    """Models a client is allowed to request explicitly.
+
+    Without an explicit ALLOWED_CHAT_MODELS, only the operator's own
+    configured defaults are allowed — closes the abuse vector where any
+    caller could pick an arbitrary (and possibly expensive) model billed to
+    the operator's API key.
+    """
+    raw = _gateway_setting("ALLOWED_CHAT_MODELS", "")
+    configured = {item.strip() for item in raw.split(",") if item.strip()}
+    if configured:
+        return configured
+    return {hf_model, openai_model}
+
+
 def build_chat_gateway(model: str | None = None) -> ChatCompletionGateway:
     gateway_mode = _gateway_setting("CHAT_GATEWAY", "local").lower()
     openai_key = _effective_api_key(_gateway_setting("OPENAI_API_KEY"))
@@ -315,6 +348,10 @@ def build_chat_gateway(model: str | None = None) -> ChatCompletionGateway:
         return LocalPythonAssistantGateway()
 
     requested = (model or "").strip() or None
+    if requested and requested not in _allowed_chat_models(hf_model, openai_model):
+        raise ValidationError(
+            f"Modelo '{requested}' não está na lista de modelos permitidos.", field="model"
+        )
     # Modelos namespaced (ex.: deepseek-ai/DeepSeek-V4-Flash) vão pelo router do HF.
     is_hub_model = bool(requested and "/" in requested)
 
@@ -350,7 +387,9 @@ def normalize_thinking_mode(value: str | None) -> str:
         return "balanced"
     normalized = value.strip().lower()
     if normalized not in THINKING_MODES:
-        raise ValueError("thinking_mode deve ser fast, balanced ou deep.")
+        raise ValidationError(
+            "thinking_mode deve ser fast, balanced ou deep.", field="thinking_mode"
+        )
     return normalized
 
 
@@ -367,16 +406,30 @@ class ChatService:
         self.book_repository = book_repository or BookRepository()
 
     def create_session(self, title: str = "Nova conversa"):
-        return self.repository.create_session(title)
+        session = self.repository.create_session(title)
+        db.session.commit()
+        return session
 
     def delete_session(self, session_id: str) -> None:
+        session = self.repository.get_session(session_id)
+        if not session:
+            raise NotFoundError("Sessão de chat não encontrada.")
+        attachment_paths = [Path(attachment.storage_path) for attachment in session.attachments]
         if not self.repository.delete_session(session_id):
-            raise ValueError("Sessão de chat não encontrada.")
+            raise NotFoundError("Sessão de chat não encontrada.")
+        db.session.commit()
+
+        for path in attachment_paths:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Não foi possível remover anexo %s", path, exc_info=True)
 
     def update_session(self, session_id: str, *, pinned: bool) -> object:
         session = self.repository.update_session(session_id, pinned=pinned)
         if not session:
-            raise ValueError("Sessão de chat não encontrada.")
+            raise NotFoundError("Sessão de chat não encontrada.")
+        db.session.commit()
         return session
 
     @traceable_if_enabled("chat.ask", run_type="chain")
@@ -389,9 +442,16 @@ class ChatService:
         attachment_ids: list[str] | None = None,
     ) -> tuple[object, object]:
         if not self.repository.get_session(session_id):
-            raise ValueError("Sessão de chat não encontrada.")
+            raise NotFoundError("Sessão de chat não encontrada.")
         if not content.strip() and not attachment_ids:
-            raise ValueError("Campo content é obrigatório quando não há anexos.")
+            raise ValidationError(
+                "Campo content é obrigatório quando não há anexos.", field="content"
+            )
+        max_chars = chat_max_message_chars()
+        if len(content) > max_chars:
+            raise ValidationError(
+                f"Campo content excede o limite de {max_chars} caracteres.", field="content"
+            )
 
         mode = normalize_thinking_mode(thinking_mode)
         attachments = self._validated_attachments(attachment_ids or [], session_id)
@@ -435,6 +495,11 @@ class ChatService:
             status=status,
             trace_id=trace_id,
         )
+        # Single commit for the whole use case: user message + attachment
+        # linking + assistant message land together or not at all — a
+        # mid-sequence failure (before this point) rolls everything back
+        # instead of leaving a partially-persisted conversation.
+        db.session.commit()
         return user_message, assistant_message
 
     def _validated_attachments(
@@ -447,7 +512,7 @@ class ChatService:
         if len(found_ids) != len(set(attachment_ids)) or any(
             attachment.session_id != session_id for attachment in attachments
         ):
-            raise ValueError("Anexos inválidos para esta sessão.")
+            raise ValidationError("Anexos inválidos para esta sessão.", field="attachment_ids")
         return attachments
 
     def _book_context(self, content: str, history: list[dict[str, str]]) -> list[Book]:
