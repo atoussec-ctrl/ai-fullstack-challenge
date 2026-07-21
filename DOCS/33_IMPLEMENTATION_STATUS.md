@@ -1,6 +1,6 @@
 # Status de implementacao
 
-Auditoria realizada em 2026-07-03.
+Auditoria realizada em 2026-07-03. Atualizado em 2026-07-21 apos o fechamento das Fases 0-3 (hardening de backend, migrations reais, autenticacao minima e WSGI de producao).
 
 ## Backend
 
@@ -16,7 +16,9 @@ Auditoria realizada em 2026-07-03.
 | LangSmith | Parcial | Tracing/feedback opcional com no-op resiliente. |
 | Uploads | Parcial | Valida extensao/tamanho e remove arquivos ao deletar sessao; ainda precisa hardening e transacao de envio. |
 | Busca semantica | Demo | Hashing local; config de FAISS/embeddings ainda nao efetivada. |
-| Persistencia | MVP | SQLite + SQLAlchemy; sem migracoes versionadas. |
+| Persistencia | Implementado | SQLite + SQLAlchemy com migracoes versionadas (Alembic/Flask-Migrate). |
+| Autenticacao | Implementado (minima) | Segredo compartilhado via `API_KEY`/`Authorization: Bearer`; sem contas de usuario nem ownership (fora do escopo do MVP, ver visao de produto). Boot em producao falha sem segredos reais. |
+| WSGI de producao | Implementado | Container roda Gunicorn (`--preload` + `post_fork` para migration/engine seguros com multiplos workers), nao mais o dev server do Flask. |
 | OpenAPI | Parcial | Documento manual; enum de status do chat alinhado a `failed`. |
 
 ## Frontend
@@ -49,10 +51,12 @@ Resultado local da auditoria:
 
 ## Pendencias mais relevantes
 
-1. Preparar WSGI para producao.
-2. Adicionar autenticacao/autorizacao e ownership.
-3. Substituir migracoes ad hoc por Alembic/Flask-Migrate.
-4. Manter OpenAPI, backend e tipos frontend alinhados por testes de contrato.
-5. Tornar uploads transacionais e adicionar limpeza de anexos orfaos.
-6. Adicionar paginacao, rate limit e timeouts.
-7. Refatorar frontend por dominios e incluir mais logica no coverage.
+1. Tornar upload de anexo + envio de mensagem transacional (hoje sao duas chamadas HTTP separadas sem compensacao).
+2. Adicionar timeout/retry e rate limit no gateway de IA.
+3. Streaming real do provedor (hoje a rota SSE reproduz uma mensagem ja persistida).
+4. Refatorar `App.tsx` (1611 linhas, fora do escopo do gate de cobertura) por dominios.
+5. Conectar a busca semantica aos livros reais (hoje indexa 6 documentos fixos).
+6. Acessibilidade do drawer mobile (`role=dialog`, `aria-modal`, focus trap, Escape).
+7. Gerar `request_id` quando ausente e estruturar logs para correlacao.
+
+Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao.

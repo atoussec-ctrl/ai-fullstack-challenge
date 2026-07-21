@@ -39,11 +39,13 @@ Incluido:
 
 Nao incluido ainda:
 
-- Login, multiusuario e ownership.
+- Login, multiusuario e ownership (a API e protegida por segredo compartilhado unico, nao por conta de usuario — ver `API_KEY` em `DOCS/29_ENV_EXAMPLE.md`).
 - Billing, planos, controle de quota e auditoria por usuario.
 - Busca vetorial real persistida em FAISS para todo o acervo.
 - Streaming real token-a-token do provedor LLM.
-- Deploy de producao com WSGI, observabilidade e seguranca completas.
+- Observabilidade completa (logs estruturados, `request_id` gerado, metricas).
+
+Ja incluido desde a auditoria inicial: WSGI de producao (Gunicorn) e autenticacao minima por API key, com guarda que falha o boot em producao se os segredos nao forem configurados.
 
 ## Indicadores de qualidade desejados
 
