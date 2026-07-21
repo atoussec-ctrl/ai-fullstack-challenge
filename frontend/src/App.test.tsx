@@ -41,6 +41,63 @@ it('toggles the mobile sidebar from the header and closes from the drawer icon',
   expect(await screen.findByRole('button', { name: 'Abrir menu' })).toBeInTheDocument()
 })
 
+it('exposes the mobile drawer as an accessible dialog and closes it with Escape', async () => {
+  renderApp()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Abrir menu' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Menu de navegação' })
+  expect(dialog).toBeInTheDocument()
+
+  fireEvent.keyDown(document, { key: 'Escape' })
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(await screen.findByRole('button', { name: 'Abrir menu' })).toBeInTheDocument()
+})
+
+it('filters the session list by title through the sidebar search', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      if (url.includes('/chat/sessions')) {
+        return Response.json([
+          {
+            id: 'session_flask',
+            title: 'Dúvida sobre Flask',
+            pinned: false,
+            pinned_at: null,
+            created_at: '2026-06-12T00:00:00Z',
+            updated_at: '2026-06-12T01:00:00Z',
+          },
+          {
+            id: 'session_python',
+            title: 'Listas em Python',
+            pinned: false,
+            pinned_at: null,
+            created_at: '2026-06-11T00:00:00Z',
+            updated_at: '2026-06-11T01:00:00Z',
+          },
+        ])
+      }
+      return Response.json([])
+    }),
+  )
+
+  renderApp()
+
+  expect(await screen.findByText('Dúvida sobre Flask')).toBeInTheDocument()
+  expect(screen.getByText('Listas em Python')).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Buscar chats' }))
+  fireEvent.change(screen.getByLabelText('Buscar chats'), { target: { value: 'flask' } })
+
+  expect(await screen.findByText('Dúvida sobre Flask')).toBeInTheDocument()
+  expect(screen.queryByText('Listas em Python')).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Buscar chats' }))
+  expect(screen.queryByLabelText('Buscar chats')).not.toBeInTheDocument()
+  expect(await screen.findByText('Listas em Python')).toBeInTheDocument()
+})
+
 it('renders the chat shell and composer', async () => {
   renderApp()
 

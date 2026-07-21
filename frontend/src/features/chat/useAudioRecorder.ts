@@ -1,10 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export function useAudioRecorder() {
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const [isRecording, setIsRecording] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(track => track.stop())
+    }
+  }, [])
 
   async function start() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })

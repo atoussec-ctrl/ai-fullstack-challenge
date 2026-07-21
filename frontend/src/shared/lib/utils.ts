@@ -80,6 +80,15 @@ export function groupSessionsForSidebar<
   return { pinned, groups }
 }
 
+export function filterSessionsByQuery<T extends { title: string }>(
+  sessions: T[],
+  query: string,
+): T[] {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return sessions
+  return sessions.filter(session => session.title.toLowerCase().includes(normalized))
+}
+
 export function generateId(): string {
   return crypto.randomUUID()
 }
