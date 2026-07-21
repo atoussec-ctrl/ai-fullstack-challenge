@@ -61,7 +61,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=app --cov-report=term-missing --cov-fail-under=85
+          pytest --cov=app --cov-report=term-missing --cov-fail-under=95
         env:
           APP_ENV: testing
           DATABASE_URL: "sqlite:///:memory:"
