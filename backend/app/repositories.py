@@ -9,6 +9,14 @@ from app.extensions import db
 from app.models import Attachment, Book, ChatMessage, ChatSession, utc_now
 
 
+def _paginate(items: list, limit: int | None, offset: int | None) -> list:
+    """Slice an in-memory list for the branches that can't paginate in SQL
+    (free-text search ranks in Python after loading candidate rows)."""
+    start = offset or 0
+    end = start + limit if limit is not None else None
+    return items[start:end]
+
+
 class BookRepository:
     def create(
         self,
@@ -27,7 +35,7 @@ class BookRepository:
             summary=summary,
         )
         db.session.add(book)
-        db.session.commit()
+        db.session.flush()
         return book
 
     def get(self, book_id: str) -> Book | None:
@@ -39,6 +47,8 @@ class BookRepository:
         author: str | None = None,
         category: str | None = None,
         query_text: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> list[Book]:
         query = Book.query
         if title:
@@ -51,13 +61,19 @@ class BookRepository:
             terms = search_terms(query_text)
             books = query.order_by(Book.created_at.desc()).all()
             if not terms:
-                return books
-            return sorted(
+                return _paginate(books, limit, offset)
+            ranked = sorted(
                 [book for book in books if score_book(book, terms) > 0],
                 key=lambda book: score_book(book, terms),
                 reverse=True,
             )
-        return query.order_by(Book.created_at.desc()).all()
+            return _paginate(ranked, limit, offset)
+        query = query.order_by(Book.created_at.desc())
+        if offset is not None:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def relevant_for_question(self, question: str, limit: int = 3) -> list[Book]:
         terms = search_terms(question)
@@ -119,12 +135,19 @@ def score_book(book: Book, terms: list[str]) -> int:
 
 
 class ChatRepository:
-    def list_sessions(self) -> list[ChatSession]:
-        return ChatSession.query.order_by(
+    def list_sessions(
+        self, limit: int | None = None, offset: int | None = None
+    ) -> list[ChatSession]:
+        query = ChatSession.query.order_by(
             ChatSession.pinned.desc(),
             ChatSession.pinned_at.desc(),
             ChatSession.updated_at.desc(),
-        ).all()
+        )
+        if offset is not None:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def get_session(self, session_id: str) -> ChatSession | None:
         return db.session.get(ChatSession, session_id)
@@ -132,7 +155,7 @@ class ChatRepository:
     def create_session(self, title: str = "Nova conversa") -> ChatSession:
         session = ChatSession(title=title.strip() or "Nova conversa")
         db.session.add(session)
-        db.session.commit()
+        db.session.flush()
         return session
 
     def delete_session(self, session_id: str) -> bool:
@@ -140,7 +163,7 @@ class ChatRepository:
         if not session:
             return False
         db.session.delete(session)
-        db.session.commit()
+        db.session.flush()
         return True
 
     def update_session(
@@ -155,15 +178,20 @@ class ChatRepository:
         if pinned is not None:
             session.pinned = pinned
             session.pinned_at = utc_now() if pinned else None
-        db.session.commit()
+        db.session.flush()
         return session
 
-    def list_messages(self, session_id: str) -> list[ChatMessage]:
-        return (
-            ChatMessage.query.filter_by(session_id=session_id)
-            .order_by(ChatMessage.created_at.asc())
-            .all()
+    def list_messages(
+        self, session_id: str, limit: int | None = None, offset: int | None = None
+    ) -> list[ChatMessage]:
+        query = ChatMessage.query.filter_by(session_id=session_id).order_by(
+            ChatMessage.created_at.asc()
         )
+        if offset is not None:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def get_message(self, message_id: str) -> ChatMessage | None:
         return db.session.get(ChatMessage, message_id)
@@ -192,8 +220,11 @@ class ChatRepository:
         if session:
             session.updated_at = created_at
         db.session.add(message)
-        db.session.commit()
+        db.session.flush()
         return message
+
+    def get_attachment(self, attachment_id: str) -> Attachment | None:
+        return db.session.get(Attachment, attachment_id)
 
     def find_attachments(self, attachment_ids: list[str]) -> list[Attachment]:
         return Attachment.query.filter(Attachment.id.in_(attachment_ids)).all()
@@ -202,5 +233,5 @@ class ChatRepository:
         attachments = self.find_attachments(attachment_ids)
         for attachment in attachments:
             attachment.message_id = message_id
-        db.session.commit()
+        db.session.flush()
         return attachments

@@ -25,6 +25,17 @@ def test_openapi_documents_all_public_routes(client):
     assert "ErrorResponse" in spec["components"]["schemas"]
 
 
+def test_openapi_chat_message_status_matches_runtime_values(client):
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    spec = response.get_json()
+    status_schema = spec["components"]["schemas"]["ChatMessage"]["properties"]["status"]
+
+    assert "failed" in status_schema["enum"]
+    assert "error" not in status_schema["enum"]
+
+
 def test_swagger_docs_page_points_to_openapi(client):
     response = client.get("/docs")
 

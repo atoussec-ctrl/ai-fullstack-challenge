@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.errors import NotFoundError, ValidationError
+from app.extensions import db
 from app.repositories import BookRepository
 
 
@@ -11,7 +13,7 @@ def parse_book_payload(payload: dict[str, object]) -> dict[str, object]:
     required = ("title", "author", "summary")
     for field in required:
         if not str(payload.get(field, "")).strip():
-            raise ValueError(f"Campo {field} é obrigatório.")
+            raise ValidationError(f"Campo {field} é obrigatório.", field=field)
 
     publication_date = parse_publication_date(payload)
 
@@ -30,17 +32,27 @@ def parse_publication_date(payload: dict[str, object]) -> date:
         try:
             return date.fromisoformat(raw_date)
         except ValueError as exc:
-            raise ValueError("Campo publication_date deve usar o formato YYYY-MM-DD.") from exc
+            raise ValidationError(
+                "Campo publication_date deve usar o formato YYYY-MM-DD.",
+                field="publication_date",
+            ) from exc
 
     raw_year = str(payload.get("publication_year", payload.get("year", ""))).strip()
     if not raw_year:
-        raise ValueError("Campo publication_date ou publication_year é obrigatório.")
+        raise ValidationError(
+            "Campo publication_date ou publication_year é obrigatório.",
+            field="publication_date",
+        )
     try:
         year = int(raw_year)
     except ValueError as exc:
-        raise ValueError("Campo publication_year deve ser um ano numérico.") from exc
+        raise ValidationError(
+            "Campo publication_year deve ser um ano numérico.", field="publication_year"
+        ) from exc
     if year < 1000 or year > 9999:
-        raise ValueError("Campo publication_year deve conter quatro dígitos.")
+        raise ValidationError(
+            "Campo publication_year deve conter quatro dígitos.", field="publication_year"
+        )
     return date(year, 1, 1)
 
 
@@ -50,12 +62,14 @@ class BookService:
 
     def create(self, payload: dict[str, object]):
         data = parse_book_payload(payload)
-        return self.repository.create(**data)
+        book = self.repository.create(**data)
+        db.session.commit()
+        return book
 
     def get(self, book_id: str):
         book = self.repository.get(book_id)
         if not book:
-            raise ValueError("Livro não encontrado.")
+            raise NotFoundError("Livro não encontrado.")
         return book
 
     def search(
@@ -64,10 +78,14 @@ class BookService:
         author: str | None = None,
         category: str | None = None,
         query_text: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ):
         return self.repository.search(
             title=title,
             author=author,
             category=category,
             query_text=query_text,
+            limit=limit,
+            offset=offset,
         )

@@ -100,7 +100,12 @@ def test_auto_ignores_placeholder_keys_from_env_example(app):
 
 def test_explicit_openai_model_keeps_openai_gateway(app):
     with app.app_context():
-        _set(app, HUGGINGFACE_API_KEY="hf_test", OPENAI_API_KEY="sk-test")
+        _set(
+            app,
+            HUGGINGFACE_API_KEY="hf_test",
+            OPENAI_API_KEY="sk-test",
+            ALLOWED_CHAT_MODELS="gpt-4.1",
+        )
         gateway = build_chat_gateway("gpt-4.1")
 
         assert isinstance(gateway, LangChainOpenAIGateway)
@@ -111,7 +116,13 @@ def test_explicit_openai_model_keeps_openai_gateway(app):
 
 def test_explicit_deepseek_model_routes_to_huggingface(app):
     with app.app_context():
-        _set(app, HUGGINGFACE_API_KEY="hf_test", OPENAI_API_KEY="sk-test", CHAT_GATEWAY="openai")
+        _set(
+            app,
+            HUGGINGFACE_API_KEY="hf_test",
+            OPENAI_API_KEY="sk-test",
+            CHAT_GATEWAY="openai",
+            ALLOWED_CHAT_MODELS="deepseek-ai/DeepSeek-V4-Pro",
+        )
         gateway = build_chat_gateway("deepseek-ai/DeepSeek-V4-Pro")
 
         assert isinstance(gateway, LangChainOpenAIGateway)
@@ -127,3 +138,45 @@ def test_huggingface_mode_without_key_raises(app):
             raise AssertionError("deveria ter levantado ValueError")
         except ValueError as exc:
             assert "HUGGINGFACE_API_KEY" in str(exc)
+
+
+# ── Allowlist de modelo (MS-security: impede abuso de custo via modelo arbitrário) ──
+
+
+def test_client_requested_model_outside_allowlist_is_rejected(app):
+    with app.app_context():
+        _set(app, HUGGINGFACE_API_KEY="hf_test", OPENAI_API_KEY="sk-test")
+        try:
+            build_chat_gateway("some-arbitrary-expensive-model")
+            raise AssertionError("deveria ter levantado ValidationError")
+        except ValueError as exc:
+            assert "não está na lista de modelos permitidos" in str(exc)
+
+
+def test_default_allowlist_permits_the_operators_own_configured_models(app):
+    """Without ALLOWED_CHAT_MODELS, only the operator's own defaults are usable."""
+    with app.app_context():
+        _set(
+            app,
+            HUGGINGFACE_API_KEY="hf_test",
+            OPENAI_API_KEY="sk-test",
+            HF_CHAT_MODEL="deepseek-ai/DeepSeek-V4-Flash",
+        )
+        gateway = build_chat_gateway("deepseek-ai/DeepSeek-V4-Flash")
+
+        assert isinstance(gateway, LangChainOpenAIGateway)
+        assert gateway.model == "deepseek-ai/DeepSeek-V4-Flash"
+
+
+def test_explicit_allowlist_permits_extra_models(app):
+    with app.app_context():
+        _set(
+            app,
+            HUGGINGFACE_API_KEY="hf_test",
+            OPENAI_API_KEY="sk-test",
+            ALLOWED_CHAT_MODELS="deepseek-ai/DeepSeek-V4-Flash, deepseek-ai/DeepSeek-V4-Pro",
+        )
+        gateway = build_chat_gateway("deepseek-ai/DeepSeek-V4-Pro")
+
+        assert isinstance(gateway, LangChainOpenAIGateway)
+        assert gateway.model == "deepseek-ai/DeepSeek-V4-Pro"

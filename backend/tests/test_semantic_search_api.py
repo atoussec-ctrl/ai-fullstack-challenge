@@ -15,3 +15,21 @@ def test_semantic_search_validates_empty_query(client):
 
     assert response.status_code == 400
     assert response.get_json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_semantic_search_validates_k_out_of_range(client):
+    response = client.post("/api/v1/semantic-search", json={"query": "listas", "k": 11})
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]["field"] == "k"
+
+
+def test_semantic_search_validates_non_numeric_k(client):
+    response = client.post("/api/v1/semantic-search", json={"query": "listas", "k": "muitos"})
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]["field"] == "k"

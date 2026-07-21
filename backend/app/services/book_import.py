@@ -15,6 +15,7 @@ from pathlib import Path
 
 from werkzeug.datastructures import FileStorage
 
+from app.errors import ValidationError
 from app.models import Book
 from app.services.books import BookService
 from app.services.observability import traceable_if_enabled
@@ -61,10 +62,11 @@ class BookMetadataExtractor:
         if not summary:
             missing.append("summary")
         if missing:
-            raise ValueError(
+            raise ValidationError(
                 "Não foi possível extrair metadados obrigatórios do livro: "
                 + ", ".join(missing)
-                + ". Inclua título, autor, ano e resumo no arquivo."
+                + ". Inclua título, autor, ano e resumo no arquivo.",
+                field="file",
             )
 
         return ExtractedBook(
@@ -88,10 +90,10 @@ class BookImportService:
     @traceable_if_enabled("books.import_file", run_type="chain")
     def import_file(self, file: FileStorage | None) -> tuple[Book, ExtractedBook]:
         if not file or not file.filename:
-            raise ValueError("Campo file é obrigatório.")
+            raise ValidationError("Campo file é obrigatório.", field="file")
         extension = Path(file.filename).suffix.lower()
         if extension not in {".txt", ".md", ".json", ".pdf"}:
-            raise ValueError("Envie um arquivo .txt, .md, .json ou .pdf.")
+            raise ValidationError("Envie um arquivo .txt, .md, .json ou .pdf.", field="file")
 
         raw = file.read()
         if extension == ".pdf":
@@ -99,7 +101,7 @@ class BookImportService:
         else:
             content = raw.decode("utf-8", errors="ignore")
         if not content.strip():
-            raise ValueError("Arquivo sem texto legível para extração.")
+            raise ValidationError("Arquivo sem texto legível para extração.", field="file")
 
         extracted = self.extractor.extract(filename=file.filename, content=content)
         book = self.book_service.create(

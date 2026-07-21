@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 
 from app.services.book_import import BookImportService
 from app.services.books import BookService
-from app.utils.http import error_response, validation_error
+from app.utils.http import parse_pagination
 
 books_bp = Blueprint("books", __name__)
 
@@ -12,19 +12,13 @@ books_bp = Blueprint("books", __name__)
 @books_bp.post("/books")
 def create_book():
     payload = request.get_json(silent=True) or {}
-    try:
-        book = BookService().create(payload)
-    except ValueError as exc:
-        return validation_error(str(exc))
+    book = BookService().create(payload)
     return jsonify(book.to_dict()), 201
 
 
 @books_bp.post("/books/import")
 def import_book():
-    try:
-        book, extracted = BookImportService().import_file(request.files.get("file"))
-    except ValueError as exc:
-        return validation_error(str(exc))
+    book, extracted = BookImportService().import_file(request.files.get("file"))
     return jsonify(
         {
             "book": book.to_dict(),
@@ -45,19 +39,19 @@ def list_books():
     author = request.args.get("author")
     category = request.args.get("category")
     query_text = request.args.get("q")
+    limit, offset = parse_pagination(request.args)
     books = BookService().search(
         title=title,
         author=author,
         category=category,
         query_text=query_text,
+        limit=limit,
+        offset=offset,
     )
     return jsonify([book.to_dict() for book in books])
 
 
 @books_bp.get("/books/<book_id>")
 def get_book(book_id: str):
-    try:
-        book = BookService().get(book_id)
-    except ValueError:
-        return error_response("NOT_FOUND", "Livro não encontrado.", 404)
+    book = BookService().get(book_id)
     return jsonify(book.to_dict())

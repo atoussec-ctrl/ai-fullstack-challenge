@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useSessionSwipeGesture } from './useSessionSwipeGesture'
+import { resolveSwipeAction, useSessionSwipeGesture } from './useSessionSwipeGesture'
 
 describe('useSessionSwipeGesture', () => {
   beforeEach(() => {
@@ -45,5 +45,25 @@ describe('useSessionSwipeGesture', () => {
 
     act(() => result.current.disarmSwipe())
     expect(result.current.armedSessionId).toBeNull()
+  })
+})
+
+describe('resolveSwipeAction', () => {
+  const threshold = 72
+
+  it('resolves to "delete" once the offset reaches the negative threshold', () => {
+    expect(resolveSwipeAction(-threshold, threshold)).toBe('delete')
+    expect(resolveSwipeAction(-(threshold + 1), threshold)).toBe('delete')
+  })
+
+  it('resolves to "pin" once the offset reaches the positive threshold', () => {
+    expect(resolveSwipeAction(threshold, threshold)).toBe('pin')
+    expect(resolveSwipeAction(threshold + 1, threshold)).toBe('pin')
+  })
+
+  it('resolves to "none" for offsets within the threshold band', () => {
+    expect(resolveSwipeAction(0, threshold)).toBe('none')
+    expect(resolveSwipeAction(threshold - 1, threshold)).toBe('none')
+    expect(resolveSwipeAction(-(threshold - 1), threshold)).toBe('none')
   })
 })

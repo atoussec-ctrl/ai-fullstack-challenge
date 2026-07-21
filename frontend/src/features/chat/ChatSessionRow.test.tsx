@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ChatSessionRow } from './ChatSessionRow'
-import { SESSION_SWIPE_THRESHOLD_PX } from './useSessionSwipeGesture'
 
 const session = {
   id: 'session_1',
@@ -79,92 +78,36 @@ describe('ChatSessionRow', () => {
     expect(container.querySelector('.bg-sidebar\\/40')).not.toBeInTheDocument()
   })
 
-  it('calls onDelete when drag ends past delete threshold (swipe left)', () => {
-    const onDelete = vi.fn()
-    const { container } = renderRow({ isArmed: true, onDelete })
+  it('calls onPin when the accessible pin button is clicked', () => {
+    const onPin = vi.fn()
+    renderRow({ onPin })
 
-    // Trigger dragEnd with offset exceeding delete threshold
-    const motionDiv = container.querySelector('[style]') as HTMLElement
-    fireEvent(
-      motionDiv,
-      new CustomEvent('dragend', {
-        bubbles: true,
-        detail: { offset: { x: -(SESSION_SWIPE_THRESHOLD_PX + 1) } },
-      }),
-    )
-    // framer-motion dragEnd is internal, but we validate via direct invocation
-    // The component renders — no throw is sufficient for render coverage
-    expect(onDelete).not.toThrow()
+    fireEvent.click(screen.getByRole('button', { name: 'Fixar conversa' }))
+
+    expect(onPin).toHaveBeenCalledTimes(1)
   })
 
-  it('handleDragEnd: calls onDelete when swiped left beyond threshold', () => {
+  it('calls onDelete when the accessible delete button is clicked', () => {
     const onDelete = vi.fn()
-    const onPin = vi.fn()
-    const onDisarm = vi.fn()
-    const { container } = renderRow({ isArmed: true, onDelete, onPin, onDisarm })
+    renderRow({ onDelete })
 
-    interface ReactFiberNode {
-      memoizedProps?: {
-        onDragEnd?: (event: unknown, info: { offset: { x: number } }) => void
-      }
-      return?: ReactFiberNode
-    }
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir conversa' }))
 
-    // Access the React fiber to get the onDragEnd prop directly
-    const motionDiv = container.querySelector('div[style]') as HTMLElement & {
-      _reactFiber?: ReactFiberNode
-    }
-
-    // Walk up the fiber tree to find the motion.div with onDragEnd
-    let fiber: ReactFiberNode | undefined = motionDiv._reactFiber
-    while (fiber && !fiber.memoizedProps?.onDragEnd) {
-      fiber = fiber.return
-    }
-
-    if (fiber?.memoizedProps?.onDragEnd) {
-      fiber.memoizedProps.onDragEnd({}, { offset: { x: -(SESSION_SWIPE_THRESHOLD_PX + 1) } })
-      expect(onDelete).toHaveBeenCalledTimes(1)
-
-      fiber.memoizedProps.onDragEnd({}, { offset: { x: SESSION_SWIPE_THRESHOLD_PX + 1 } })
-      expect(onPin).toHaveBeenCalledTimes(1)
-
-      fiber.memoizedProps.onDragEnd({}, { offset: { x: 10 } })
-      expect(onDisarm).toHaveBeenCalledTimes(1)
-    } else {
-      // If fiber access not available, skip assertion (env limitation)
-      expect(true).toBe(true)
-    }
+    expect(onDelete).toHaveBeenCalledTimes(1)
   })
 
-  it('handleDragEnd: does nothing when not armed', () => {
-    const onDelete = vi.fn()
-    const onPin = vi.fn()
-    const onDisarm = vi.fn()
-    const { container } = renderRow({ isArmed: false, onDelete, onPin, onDisarm })
+  it('labels the pin button as "Desafixar" for an already-pinned session', () => {
+    renderRow({ session: { ...session, pinned: true } })
 
-    interface ReactFiberNode {
-      memoizedProps?: {
-        onDragEnd?: (event: unknown, info: { offset: { x: number } }) => void
-      }
-      return?: ReactFiberNode
-    }
+    expect(screen.getByRole('button', { name: 'Desafixar conversa' })).toBeInTheDocument()
+  })
 
-    const motionDiv = container.querySelector('div[style]') as HTMLElement & {
-      _reactFiber?: ReactFiberNode
-    }
-    let fiber: ReactFiberNode | undefined = motionDiv._reactFiber
-    while (fiber && !fiber.memoizedProps?.onDragEnd) {
-      fiber = fiber.return
-    }
+  it('accessible actions stay reachable by keyboard regardless of hover state', () => {
+    renderRow()
 
-    if (fiber?.memoizedProps?.onDragEnd) {
-      fiber.memoizedProps.onDragEnd({}, { offset: { x: -(SESSION_SWIPE_THRESHOLD_PX + 1) } })
-      expect(onDelete).not.toHaveBeenCalled()
-      expect(onPin).not.toHaveBeenCalled()
-      expect(onDisarm).not.toHaveBeenCalled()
-    } else {
-      expect(true).toBe(true)
-    }
+    // Real DOM elements (not display:none) are what keeps them in the tab order.
+    expect(screen.getByRole('button', { name: 'Fixar conversa' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Excluir conversa' })).toBeVisible()
   })
 
   it('prevents contextMenu when armed', () => {

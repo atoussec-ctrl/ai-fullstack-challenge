@@ -52,6 +52,7 @@ def paths() -> dict[str, object]:
                     query_param("author", "Filter by author"),
                     query_param("category", "Filter by category"),
                     query_param("q", "Search title, author, category and summary"),
+                    *pagination_params(),
                 ],
                 "responses": {"200": array_response("Book")},
             },
@@ -111,6 +112,7 @@ def paths() -> dict[str, object]:
             "get": {
                 "tags": ["Chat"],
                 "summary": "List chat sessions",
+                "parameters": pagination_params(),
                 "responses": {"200": array_response("ChatSession")},
             },
             "post": {
@@ -145,7 +147,7 @@ def paths() -> dict[str, object]:
             "get": {
                 "tags": ["Chat"],
                 "summary": "List messages from a session",
-                "parameters": [path_param("session_id", "Chat session id")],
+                "parameters": [path_param("session_id", "Chat session id"), *pagination_params()],
                 "responses": {
                     "200": array_response("ChatMessage"),
                     "404": json_response("ErrorResponse"),
@@ -325,7 +327,7 @@ def components() -> dict[str, object]:
                     },
                     "status": {
                         "type": "string",
-                        "enum": ["pending", "streaming", "completed", "error"],
+                        "enum": ["pending", "streaming", "completed", "failed"],
                     },
                     "trace_id": nullable_string(),
                     "attachments": {"type": "array", "items": ref("Attachment")},
@@ -458,6 +460,25 @@ def query_param(name: str, description: str) -> dict[str, object]:
         "description": description,
         "schema": string(),
     }
+
+
+def pagination_params() -> list[dict[str, object]]:
+    return [
+        {
+            "name": "limit",
+            "in": "query",
+            "required": False,
+            "description": "Max items to return (1-200). Omit for the full unbounded list.",
+            "schema": integer(),
+        },
+        {
+            "name": "offset",
+            "in": "query",
+            "required": False,
+            "description": "Items to skip before collecting results. Omit to start at 0.",
+            "schema": integer(),
+        },
+    ]
 
 
 def path_param(name: str, description: str) -> dict[str, object]:

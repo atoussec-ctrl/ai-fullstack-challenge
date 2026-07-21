@@ -23,7 +23,17 @@ describe('utils', () => {
     expect(formatRelativeTime('2026-06-12T11:30:00Z')).toBe('30m ago')
     expect(formatRelativeTime('2026-06-12T11:00:00Z')).toBe('1h ago')
     expect(formatRelativeTime('2026-06-10T12:00:00Z')).toBe('2d ago')
-    expect(formatRelativeTime('2026-04-01T12:00:00Z')).not.toBe('2d ago')
+
+    vi.useRealTimers()
+  })
+
+  it('falls back to a localized date for anything a week or older', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-12T12:00:00Z'))
+
+    const oldDate = new Date('2026-04-01T12:00:00Z')
+
+    expect(formatRelativeTime(oldDate.toISOString())).toBe(oldDate.toLocaleDateString())
 
     vi.useRealTimers()
   })

@@ -3,6 +3,16 @@
 import os
 from pathlib import Path
 
+from app.env_loader import load_project_env
+
+# Importing this module via `from app.env_loader import ...` (as run.py does)
+# triggers `app/__init__.py` first, which imports this module — so by the
+# time run.py's own load_project_env() call would run, Config's os.getenv()
+# class attributes below have already been evaluated against a stale
+# environment. Loading here guarantees .env is applied before those reads,
+# regardless of which entry point (run.py, seed.py, tests) imports `app` first.
+load_project_env()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -34,6 +44,11 @@ class Config:
     CHAT_GATEWAY: str = os.getenv("CHAT_GATEWAY", "local")
     # Limite de tokens de saída enviado ao provedor (HF usa 1024 se omitido).
     CHAT_MAX_OUTPUT_TOKENS: int = int(os.getenv("CHAT_MAX_OUTPUT_TOKENS", "4096"))
+    # Limite de caracteres por mensagem de entrada (protege o prompt do LLM).
+    CHAT_MAX_MESSAGE_CHARS: int = int(os.getenv("CHAT_MAX_MESSAGE_CHARS", "8000"))
+    # CSV de modelos que o cliente pode solicitar explicitamente. Vazio = só os
+    # modelos já configurados pelo operador (HF_CHAT_MODEL / OPENAI_MODEL).
+    ALLOWED_CHAT_MODELS: str = os.getenv("ALLOWED_CHAT_MODELS", "")
 
     # Hugging Face Inference Providers (DeepSeek V4 etc.)
     # Aceita HUGGINGFACE_API_KEY ou HUGGINGFACE_API_TOKEN.
@@ -85,6 +100,8 @@ class TestingConfig(Config):
     OPENAI_API_KEY: str = "test-key"
     HUGGINGFACE_API_KEY: str = ""
     CHAT_GATEWAY: str = "local"
+    CHAT_MAX_MESSAGE_CHARS: int = 8000
+    ALLOWED_CHAT_MODELS: str = ""
     UPLOAD_DIR: str = "/tmp/mindsight-test-uploads"
     FAISS_INDEX_PATH: str = "/tmp/mindsight-test-faiss.index"
     WTF_CSRF_ENABLED: bool = False

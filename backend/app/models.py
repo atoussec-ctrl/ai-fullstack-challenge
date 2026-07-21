@@ -132,7 +132,13 @@ class Attachment(db.Model):
     )
     message_id = db.Column(
         db.String(96),
-        db.ForeignKey("chat_messages.id", ondelete="SET NULL"),
+        # CASCADE matches the ORM-level cascade="all, delete-orphan" already
+        # declared on ChatMessage.attachments below — an attachment without
+        # its message has no reason to exist. Previously this said SET NULL,
+        # contradicting the ORM cascade (only the ORM path was ever actually
+        # exercised, since SQLite FK enforcement isn't enabled here, but the
+        # declared DDL should still say what actually happens).
+        db.ForeignKey("chat_messages.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )

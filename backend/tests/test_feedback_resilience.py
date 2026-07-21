@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 import app.services.observability as observability
 
 
-def test_record_feedback_degrades_gracefully_on_langsmith_error(monkeypatch):
+def test_record_feedback_degrades_gracefully_on_langsmith_error(monkeypatch, caplog):
     monkeypatch.setenv("LANGSMITH_TRACING", "true")
 
     class ExplodingClient:
@@ -16,10 +18,34 @@ def test_record_feedback_degrades_gracefully_on_langsmith_error(monkeypatch):
 
     monkeypatch.setattr(langsmith, "Client", ExplodingClient)
 
-    result = observability.record_feedback(run_id="run-123", score=1.0)
+    with caplog.at_level(logging.ERROR):
+        result = observability.record_feedback(run_id="run-123", score=1.0)
 
     assert result["recorded"] is False
-    assert "Forbidden" in result["reason"]
+    # A mensagem ao cliente não deve vazar detalhes internos da exceção...
+    assert "Forbidden" not in result["reason"]
+    assert "403" not in result["reason"]
+    # ...mas o detalhe continua disponível no log do servidor para debugging.
+    assert "Forbidden" in caplog.text
+
+
+def test_record_feedback_returns_feedback_id_on_success(monkeypatch):
+    monkeypatch.setenv("LANGSMITH_TRACING", "true")
+
+    class FakeFeedback:
+        id = "feedback-abc-123"
+
+    class SucceedingClient:
+        def create_feedback(self, **kwargs):
+            return FakeFeedback()
+
+    import langsmith
+
+    monkeypatch.setattr(langsmith, "Client", SucceedingClient)
+
+    result = observability.record_feedback(run_id="run-123", score=1.0, key="user_score")
+
+    assert result == {"recorded": True, "feedback_id": "feedback-abc-123"}
 
 
 def test_feedback_endpoint_returns_202_even_when_langsmith_fails(client, monkeypatch):

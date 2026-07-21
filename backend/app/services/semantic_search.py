@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from hashlib import sha256
 from math import sqrt
 
+from app.errors import ValidationError
 from app.services.observability import traceable_if_enabled
 
 
@@ -59,13 +61,24 @@ class HashingEmbeddingModel:
     def embed(self, text: str) -> list[float]:
         vector = [0.0] * self.dimensions
         for token in tokenize(text):
-            vector[hash(token) % self.dimensions] += 1.0
+            vector[stable_token_bucket(token, self.dimensions)] += 1.0
         norm = sqrt(sum(value * value for value in vector)) or 1.0
         return [value / norm for value in vector]
 
 
 def tokenize(text: str) -> list[str]:
     return re.findall(r"[\wÀ-ÿ]+", text.lower())
+
+
+def stable_token_bucket(token: str, dimensions: int) -> int:
+    """Hash a token into a vector bucket, stable across processes.
+
+    Python's builtin hash() for str is randomized per-process via
+    PYTHONHASHSEED, which would silently break the "deterministic" contract
+    this module promises. sha256 has no such randomization.
+    """
+    digest = sha256(token.encode("utf-8")).hexdigest()
+    return int(digest, 16) % dimensions
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -88,9 +101,9 @@ class SemanticSearchService:
     @traceable_if_enabled("semantic_search.search", run_type="retriever")
     def search(self, query: str, k: int = 3) -> list[dict[str, object]]:
         if not query.strip():
-            raise ValueError("Campo query é obrigatório.")
+            raise ValidationError("Campo query é obrigatório.", field="query")
         if k < 1 or k > 10:
-            raise ValueError("Campo k deve estar entre 1 e 10.")
+            raise ValidationError("Campo k deve estar entre 1 e 10.", field="k")
 
         query_vector = self.embeddings.embed(query)
         ranked = sorted(

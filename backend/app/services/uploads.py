@@ -9,6 +9,7 @@ from flask import current_app
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
+from app.errors import NotFoundError, ValidationError
 from app.extensions import db
 from app.models import Attachment
 from app.repositories import ChatRepository
@@ -75,19 +76,19 @@ class UploadService:
     def save(self, *, file: FileStorage, session_id: str, kind: str | None = None) -> Attachment:
         session = self.chat_repository.get_session(session_id)
         if not session:
-            raise ValueError("Sessão de chat não encontrada.")
+            raise NotFoundError("Sessão de chat não encontrada.")
         if not file or not file.filename:
-            raise ValueError("Campo file é obrigatório.")
+            raise ValidationError("Campo file é obrigatório.", field="file")
 
         original_name = secure_filename(file.filename) or "attachment"
         mime_type = file.mimetype or "application/octet-stream"
         detected_kind = kind or infer_kind(original_name, mime_type)
         if detected_kind not in ALLOWED_EXTENSIONS:
-            raise ValueError("Tipo de anexo inválido.")
+            raise ValidationError("Tipo de anexo inválido.", field="kind")
 
         ext = extension_for(original_name)
         if ext not in ALLOWED_EXTENSIONS[detected_kind]:
-            raise ValueError("Extensão de arquivo não permitida.")
+            raise ValidationError("Extensão de arquivo não permitida.", field="file")
 
         max_bytes = int(current_app.config["MAX_UPLOAD_SIZE_MB"]) * 1024 * 1024
         upload_dir = Path(current_app.config["UPLOAD_DIR"])
@@ -99,7 +100,7 @@ class UploadService:
         size = storage_path.stat().st_size
         if size > max_bytes:
             storage_path.unlink(missing_ok=True)
-            raise ValueError("Arquivo excede o tamanho máximo permitido.")
+            raise ValidationError("Arquivo excede o tamanho máximo permitido.", field="file")
 
         attachment = Attachment(
             session_id=session_id,
@@ -110,5 +111,5 @@ class UploadService:
             storage_path=str(storage_path),
         )
         db.session.add(attachment)
-        db.session.commit()
+        db.session.commit()  # this is the whole use case — commits its own unit of work
         return attachment

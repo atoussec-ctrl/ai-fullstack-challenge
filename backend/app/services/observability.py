@@ -2,15 +2,27 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from typing import ParamSpec, TypeVar
+
+from flask import current_app, has_app_context
+
+logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 def langsmith_enabled() -> bool:
+    # Decorators (traceable_if_enabled) call this at module-import time, with
+    # no request/app context yet, so os.getenv is the only option there.
+    # At request time, prefer Flask config so per-environment overrides
+    # (e.g. TestingConfig forcing tracing off) are respected even though
+    # app/config.py now eagerly loads the real .env into os.environ.
+    if has_app_context():
+        return str(current_app.config.get("LANGSMITH_TRACING", "false")).lower() == "true"
     return os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
 
 
@@ -23,7 +35,7 @@ def traceable_if_enabled(
 
     try:
         from langsmith import traceable
-    except ImportError:
+    except ImportError:  # pragma: no cover - langsmith is a required dependency
         return lambda function: function
 
     return traceable(name=name, run_type=run_type)
@@ -34,7 +46,7 @@ def current_run_id() -> str | None:
         return None
     try:
         from langsmith.run_helpers import get_current_run_tree
-    except ImportError:
+    except ImportError:  # pragma: no cover - langsmith is a required dependency
         return None
 
     run_tree = get_current_run_tree()
@@ -57,7 +69,7 @@ def record_feedback(
 
     try:
         from langsmith import Client
-    except ImportError:
+    except ImportError:  # pragma: no cover - langsmith is a required dependency
         return {"recorded": False, "reason": "LangSmith package is not installed."}
 
     try:
@@ -68,7 +80,12 @@ def record_feedback(
             score=score,
             comment=comment,
         )
-    except Exception as exc:
-        # Chave inválida/403, rede fora etc. não podem derrubar o endpoint.
-        return {"recorded": False, "reason": f"Falha ao enviar ao LangSmith: {exc}"}
+    except Exception:
+        # Chave inválida/403, rede fora etc. não podem derrubar o endpoint, e o
+        # detalhe da exceção não deve vazar para o cliente — só para o log.
+        logger.exception("Falha ao enviar feedback ao LangSmith (run_id=%s)", run_id)
+        return {
+            "recorded": False,
+            "reason": "Não foi possível registrar o feedback no momento.",
+        }
     return {"recorded": True, "feedback_id": str(feedback.id)}
