@@ -5,14 +5,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
+from flask_limiter.errors import RateLimitExceeded
 from flask_migrate import stamp, upgrade
 from sqlalchemy import inspect as sa_inspect
 from werkzeug.exceptions import HTTPException
 
 from app.config import assert_production_config_is_safe, config_by_name
 from app.errors import AuthenticationError, NotFoundError, ValidationError
-from app.extensions import cors, db, migrate
+from app.extensions import cors, db, limiter, migrate
+from app.request_id import configure_logging, current_request_id, register_request_id_middleware
 from app.security import register_api_key_guard
 from app.utils.http import error_response
 
@@ -37,12 +39,16 @@ def create_app(config_name: str | None = None) -> Flask:
     if config_name == "production":
         assert_production_config_is_safe(app.config)
 
+    configure_logging(app)
+
     db.init_app(app)
     migrate.init_app(app, db, directory=str(MIGRATIONS_DIR))
     cors.init_app(app, origins=app.config["CORS_ALLOWED_ORIGINS"].split(","))
+    limiter.init_app(app)
 
     _register_blueprints(app)
     _register_error_handlers(app)
+    register_request_id_middleware(app)
     register_api_key_guard(app)
 
     @app.route("/health")
@@ -51,7 +57,7 @@ def create_app(config_name: str | None = None) -> Flask:
             {
                 "status": "ok",
                 "service": "python-ai-assistant",
-                "request_id": request.headers.get("X-Request-ID"),
+                "request_id": current_request_id(),
             }
         )
 
@@ -104,6 +110,14 @@ def _register_error_handlers(app: Flask) -> None:
             code=error.name.replace(" ", "_").upper(),
             message=error.description,
             status_code=error.code or 500,
+        )
+
+    @app.errorhandler(RateLimitExceeded)
+    def handle_rate_limit_exceeded(error: RateLimitExceeded):  # type: ignore[no-untyped-def]
+        return error_response(
+            code="RATE_LIMIT_EXCEEDED",
+            message="Muitas requisições em pouco tempo. Tente novamente em instantes.",
+            status_code=429,
         )
 
     @app.errorhandler(AuthenticationError)

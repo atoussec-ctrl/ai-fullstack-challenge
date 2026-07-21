@@ -158,10 +158,12 @@ def paths() -> dict[str, object]:
             "post": {
                 "tags": ["Chat"],
                 "summary": "Send a user message and create an assistant answer",
+                "description": "Rate limited (RATE_LIMIT_CHAT_MESSAGES, default 20/min per IP).",
                 "requestBody": json_body("SendMessageRequest"),
                 "responses": {
                     "201": json_response("SendMessageResponse"),
                     "400": json_response("ErrorResponse"),
+                    "429": json_response("ErrorResponse"),
                 },
             }
         },
