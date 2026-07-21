@@ -33,7 +33,7 @@ flowchart TD
 | Manter enum de status alinhado | Backend, OpenAPI e TS usam `failed`. | Teste de contrato cobre o valor `failed`. | Concluido. |
 | Paginacao | Listagens previsiveis. | Endpoints aceitam `limit` e cursor/page com maximo. | Concluido. |
 | Cleanup de uploads orfaos | Rotina remove anexos que falharam antes de vincular mensagem. | Job/endpoint interno testado com arquivos orfaos. | Concluido (remocao fisica ao deletar sessao). |
-| Transacao de anexos | Envio com anexos nao deixa orfaos. | Falha de `sendMessage` aciona compensacao ou endpoint unico. | Aberto. |
+| Transacao de anexos | Envio com anexos nao deixa orfaos. | Falha de `sendMessage` aciona compensacao ou endpoint unico. | Concluido — compensacao: `DELETE /attachments/{id}` remove anexos nao vinculados; o frontend chama isso automaticamente quando o envio falha (incluindo falha no meio de um lote de upload). |
 
 Fluxo alvo para mensagem com anexos:
 
