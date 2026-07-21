@@ -10,7 +10,7 @@ Analise estatica e verificacoes locais do monorepo:
 
 Nao foram aplicadas correcoes de codigo nesta auditoria; o objetivo foi documentar melhorias, gaps e fixes recomendados.
 
-**Atualizacao 2026-07-21:** os achados 1, 2 (autenticacao minima, sem ownership — ver `DOCS/01_PRODUCT_VISION.md`), 3, 5, 6, 7, 9 e 11 foram corrigidos nas fases seguintes. Ver `DOCS/33_IMPLEMENTATION_STATUS.md` e `DOCS/36_IMPROVEMENT_ROADMAP.md` para o estado atual; este documento permanece como registro historico da auditoria original.
+**Atualizacao 2026-07-21:** os achados 1, 2 (autenticacao minima, sem ownership — ver `DOCS/01_PRODUCT_VISION.md`), 3, 5, 6, 7, 9, 11 e 13 (drawer mobile; swipe ja tinha alternativa por teclado desde uma fase anterior) foram corrigidos, assim como os achados baixos de "Buscar chats" e TanStack Router nao usado. Ver `DOCS/33_IMPLEMENTATION_STATUS.md` e `DOCS/36_IMPROVEMENT_ROADMAP.md` para o estado atual; este documento permanece como registro historico da auditoria original.
 
 ## Achados criticos/altos
 
@@ -257,13 +257,13 @@ Recomendacao:
 
 ## Achados baixos
 
-| Achado | Impacto | Recomendacao |
-| --- | --- | --- |
-| Botao "Buscar chats" sem comportamento | UI sugere funcao inexistente. | Implementar busca ou remover/desabilitar. |
-| TanStack Router instalado mas nao usado | Dependencia e modelo mental desnecessarios. | Usar rotas reais ou remover dependencia. |
-| Labels de tempo em ingles | Inconsistencia de UX em app PT-BR. | Usar `Intl.RelativeTimeFormat('pt-BR')`. |
-| Playwright usa `channel: chrome` | Falha em ambientes sem Google Chrome. | Usar Chromium padrao ou instalar Chrome no CI. |
-| README referenciava `DOCS/` inexistente | Links quebrados. | Pasta `DOCS/` criada nesta auditoria. |
+| Achado | Impacto | Recomendacao | Status |
+| --- | --- | --- | --- |
+| Botao "Buscar chats" sem comportamento | UI sugere funcao inexistente. | Implementar busca ou remover/desabilitar. | Concluido — filtra sessoes por titulo. |
+| TanStack Router instalado mas nao usado | Dependencia e modelo mental desnecessarios. | Usar rotas reais ou remover dependencia. | Concluido — dependencia removida (junto com `zod`, tambem instalado e nunca usado). |
+| Labels de tempo em ingles | Inconsistencia de UX em app PT-BR. | Usar `Intl.RelativeTimeFormat('pt-BR')`. | Aberto. |
+| Playwright usa `channel: chrome` | Falha em ambientes sem Google Chrome. | Usar Chromium padrao ou instalar Chrome no CI. | Concluido (Fase 1) — CI roda Chromium padrao. |
+| README referenciava `DOCS/` inexistente | Links quebrados. | Pasta `DOCS/` criada nesta auditoria. | Concluido. |
 
 ## Pontos fortes
 
