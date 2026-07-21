@@ -113,3 +113,23 @@ class UploadService:
         db.session.add(attachment)
         db.session.commit()  # this is the whole use case — commits its own unit of work
         return attachment
+
+    def delete_unlinked(self, attachment_id: str) -> None:
+        """Remove an attachment that was uploaded but never linked to a message.
+
+        Backstop for the two-request upload-then-send flow: if sending the
+        message fails (network, validation, or a partial multi-file upload
+        batch), the client calls this to clean up what it just uploaded
+        instead of leaving orphaned rows and files behind. Refuses to touch
+        an attachment that's already part of a real conversation.
+        """
+        attachment = self.chat_repository.get_attachment(attachment_id)
+        if not attachment:
+            raise NotFoundError("Anexo não encontrado.")
+        if attachment.message_id is not None:
+            raise ValidationError("Anexo já vinculado a uma mensagem.", field="attachment_id")
+
+        storage_path = Path(attachment.storage_path)
+        db.session.delete(attachment)
+        db.session.commit()
+        storage_path.unlink(missing_ok=True)

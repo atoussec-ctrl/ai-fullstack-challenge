@@ -175,3 +175,57 @@ def test_get_attachment_returns_404_when_file_missing_from_disk(client, app):
     body = response.get_json()
     assert body["error"]["code"] == "NOT_FOUND"
     assert body["error"]["message"] == "Arquivo do anexo não encontrado."
+
+
+# ── DELETE /attachments/<id> — cleanup de anexos órfãos ──
+#
+# Compensa o risco documentado no roadmap: o frontend faz upload de anexo e
+# envio de mensagem em duas chamadas HTTP separadas; se a segunda falhar
+# (rede, validação, ou até uma falha no meio de um lote com vários anexos),
+# os anexos já enviados ficariam órfãos em disco e no banco sem este endpoint.
+
+
+def test_delete_unlinked_attachment_removes_record_and_file(client, app):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+    upload = client.post(
+        "/api/v1/attachments",
+        data={"session_id": session_id, "file": (BytesIO(b"conteudo"), "nota.txt")},
+        content_type="multipart/form-data",
+    )
+    attachment_id = upload.get_json()["id"]
+    with app.app_context():
+        storage_path = Path(db.session.get(Attachment, attachment_id).storage_path)
+    assert storage_path.exists()
+
+    response = client.delete(f"/api/v1/attachments/{attachment_id}")
+
+    assert response.status_code == 204
+    with app.app_context():
+        assert db.session.get(Attachment, attachment_id) is None
+    assert not storage_path.exists()
+
+
+def test_delete_linked_attachment_is_rejected(client):
+    session_id = client.post("/api/v1/chat/sessions", json={}).get_json()["id"]
+    upload = client.post(
+        "/api/v1/attachments",
+        data={"session_id": session_id, "file": (BytesIO(b"conteudo"), "nota.txt")},
+        content_type="multipart/form-data",
+    )
+    attachment_id = upload.get_json()["id"]
+    client.post(
+        "/api/v1/chat/messages",
+        json={"session_id": session_id, "content": "oi", "attachment_ids": [attachment_id]},
+    )
+
+    response = client.delete(f"/api/v1/attachments/{attachment_id}")
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_delete_nonexistent_attachment_returns_404(client):
+    response = client.delete("/api/v1/attachments/anexo_inexistente")
+
+    assert response.status_code == 404
+    assert response.get_json()["error"]["code"] == "NOT_FOUND"

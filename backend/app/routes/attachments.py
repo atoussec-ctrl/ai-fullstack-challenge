@@ -20,6 +20,12 @@ def create_attachment():
     return attachment.to_public_dict(), 201
 
 
+@attachments_bp.delete("/attachments/<attachment_id>")
+def delete_attachment(attachment_id: str):
+    UploadService().delete_unlinked(attachment_id)
+    return "", 204
+
+
 @attachments_bp.get("/attachments/<attachment_id>")
 def get_attachment(attachment_id: str):
     attachment = ChatRepository().get_attachment(attachment_id)
