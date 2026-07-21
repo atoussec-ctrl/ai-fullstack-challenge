@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createBook,
   createSession,
+  deleteAttachment,
   deleteSession,
   importBook,
   listBooks,
@@ -298,6 +299,47 @@ describe('deleteSession', () => {
     await expect(deleteSession('session_1')).rejects.toThrow(
       'Falha ao excluir a conversa.',
     )
+  })
+})
+
+describe('deleteAttachment', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('resolves when the API returns 204', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+
+    await expect(deleteAttachment('att_1')).resolves.toBeUndefined()
+  })
+
+  it('sends a DELETE request to the attachment endpoint', async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await deleteAttachment('att_1')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/attachments/att_1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('throws the API error message when deletion fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ error: { message: 'Anexo já vinculado a uma mensagem.' } }, { status: 400 }),
+      ),
+    )
+
+    await expect(deleteAttachment('att_1')).rejects.toThrow('Anexo já vinculado a uma mensagem.')
+  })
+
+  it('falls back to a generic message when the error response is not JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 500 })))
+
+    await expect(deleteAttachment('att_1')).rejects.toThrow('Falha ao remover anexo.')
   })
 })
 

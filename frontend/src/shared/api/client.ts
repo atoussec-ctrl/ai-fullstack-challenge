@@ -141,6 +141,18 @@ export function uploadAttachment(
   })
 }
 
+export async function deleteAttachment(attachmentId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    throw new Error(parseApiError(payload, 'Falha ao remover anexo.'))
+  }
+}
+
 export function semanticSearch(query: string, k = 3) {
   return request<{ results: SemanticSearchResult[] }>('/semantic-search', {
     method: 'POST',
