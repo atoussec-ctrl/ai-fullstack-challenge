@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { formatRelativeTime } from '@/shared/lib/utils'
 import { ChatSessionRow } from './ChatSessionRow'
 
 const session = {
@@ -100,6 +101,15 @@ describe('ChatSessionRow', () => {
     renderRow({ session: { ...session, pinned: true } })
 
     expect(screen.getByRole('button', { name: 'Desafixar conversa' })).toBeInTheDocument()
+  })
+
+  it('hides the relative time text on hover/focus so it never overlaps the pin/delete icons', () => {
+    renderRow()
+
+    const timeText = screen.getByText(formatRelativeTime(session.updated_at))
+
+    expect(timeText).toHaveClass('group-hover:opacity-0')
+    expect(timeText).toHaveClass('group-focus-within:opacity-0')
   })
 
   it('accessible actions stay reachable by keyboard regardless of hover state', () => {

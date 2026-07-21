@@ -138,7 +138,12 @@ export function ChatSessionRow({
             {session.pinned ? <Pin size={12} className="shrink-0 text-emerald-500" /> : null}
             <span className="truncate">{session.title}</span>
           </span>
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span
+            className={cn(
+              'shrink-0 text-xs text-muted-foreground transition-opacity',
+              'group-hover:opacity-0 group-focus-within:opacity-0',
+            )}
+          >
             {formatRelativeTime(session.updated_at)}
           </span>
         </button>
