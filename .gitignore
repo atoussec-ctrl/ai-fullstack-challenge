@@ -19,6 +19,9 @@ ENV/
 
 # Storage
 backend/storage/app.db
+backend/storage/app.db-journal
+backend/storage/app.db-wal
+backend/storage/app.db-shm
 backend/storage/faiss.index
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
@@ -40,6 +43,10 @@ frontend/playwright-report/
 # OS
 .DS_Store
 Thumbs.db
+
+# Stack scripts (start-stack.ps1 / stop-stack.ps1)
+.stack-pids.json
+.stack-logs/
 
 # Storybook
 frontend/storybook-static/
