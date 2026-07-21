@@ -7,7 +7,7 @@ As variaveis ficam em `.env` na raiz do projeto. O backend carrega esse arquivo 
 | Variavel | Exemplo | Uso |
 | --- | --- | --- |
 | `APP_ENV` | `development`, `testing`, `production` | Seleciona config Flask. |
-| `LOG_LEVEL` | `INFO` | Existe no template, mas ainda nao e aplicado globalmente. |
+| `LOG_LEVEL` | `INFO` | Aplicado ao logger raiz no startup. Cada log e correlacionavel por `request_id` (gerado quando o cliente nao envia `X-Request-ID`). |
 | `FLASK_DEBUG` | `false` | Liga o debug server apenas quando explicitamente `true` em `backend/run.py`. |
 | `SECRET_KEY` | valor forte | Chave de assinatura Flask. Obrigatoria em producao. |
 | `API_KEY` | valor forte | Segredo compartilhado exigido no header `Authorization: Bearer <valor>` para toda a API, exceto `/health`. Vazio = API aberta (padrao de dev local). |
@@ -33,6 +33,8 @@ Tradeoff atual: SQLite simplifica setup local, mas nao resolve concorrencia, mig
 | `HF_CHAT_MODEL` | `deepseek-ai/DeepSeek-V4-Flash` | Modelo HF default. |
 | `HF_BASE_URL` | `https://router.huggingface.co/v1` | Endpoint OpenAI-compatible. |
 | `CHAT_MAX_OUTPUT_TOKENS` | `4096` | Limite de tokens de saida. |
+| `CHAT_GATEWAY_TIMEOUT_SECONDS` | `30` | Timeout de cada chamada ao provedor — evita requisicao presa indefinidamente. |
+| `RATE_LIMIT_CHAT_MESSAGES` | `20 per minute` | Limite por IP no endpoint que chama o provedor pago. Contador em memoria por processo (nao exato sob multiplos workers do Gunicorn sem Redis). |
 
 O modo `local` e o melhor default para desenvolvimento e CI, pois nao depende de rede nem de custo externo.
 
@@ -75,6 +77,7 @@ Recomendacoes para producao:
 | Variavel | Exemplo | Uso |
 | --- | --- | --- |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3002` | Origens aceitas pelo Flask-CORS. |
+| `RATE_LIMIT_DEFAULT` | `200 per minute` | Limite global por IP aplicado a toda a API (ver secao de gateway de chat para o limite dedicado do endpoint de mensagens). |
 | `VITE_API_BASE_URL` | `http://localhost:5000/api/v1` | Base URL usada pelo frontend. |
 | `VITE_API_PROXY_TARGET` | `http://localhost:5000` | Proxy do Vite em desenvolvimento. |
 | `VITE_APP_NAME` | `MindSight AI` | Nome exibido na UI. |

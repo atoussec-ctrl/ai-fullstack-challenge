@@ -56,13 +56,13 @@ sequenceDiagram
 
 ## P2 - Confiabilidade de IA e observabilidade
 
-| Item | Resultado esperado | Criterio de aceite |
-| --- | --- | --- |
-| Timeout do gateway | Requests nao ficam presos. | Teste simula provider lento e retorna erro controlado. |
-| Rate limit | Protecao de custo e abuso. | Limite por usuario/IP com resposta 429. |
-| Streaming real | UI recebe tokens do provedor quando suportado. | E2E ou teste de contrato valida SSE real. |
-| Logs estruturados | Requests correlacionaveis. | Cada log contem request_id, route, status, duration_ms. |
-| Metricas | Operacao basica mensuravel. | Expor endpoint/collector para latencia, erros e chamadas LLM. |
+| Item | Resultado esperado | Criterio de aceite | Status |
+| --- | --- | --- | --- |
+| Timeout do gateway | Requests nao ficam presos. | Teste simula provider lento e retorna erro controlado. | Concluido — `CHAT_GATEWAY_TIMEOUT_SECONDS` (default 30s) passado ao `ChatOpenAI`. |
+| Rate limit | Protecao de custo e abuso. | Limite por usuario/IP com resposta 429. | Concluido — flask-limiter, 20/min por IP em `/chat/messages` (default global 200/min). Limitacao conhecida: contador em memoria por processo, nao exato sob multiplos workers do Gunicorn sem Redis. |
+| Streaming real | UI recebe tokens do provedor quando suportado. | E2E ou teste de contrato valida SSE real. | Aberto — a rota SSE ainda reproduz uma mensagem ja persistida, nao `stream=True` do provedor. |
+| Logs estruturados | Requests correlacionaveis. | Cada log contem request_id, route, status, duration_ms. | Concluido (parcial) — `request_id` gerado/ecoado e correlacionado em todo log via filtro; `LOG_LEVEL` agora aplicado globalmente. Faltam `route`/`duration_ms` por linha. |
+| Metricas | Operacao basica mensuravel. | Expor endpoint/collector para latencia, erros e chamadas LLM. | Aberto. |
 
 ## P3 - Evolucao de produto e DX
 
