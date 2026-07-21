@@ -301,6 +301,45 @@ describe('deleteSession', () => {
   })
 })
 
+describe('API key header', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  it('does not send an Authorization header when VITE_API_KEY is not configured', async () => {
+    const fetchMock = vi.fn(async () => Response.json([]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await listSessions()
+
+    const [, callInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect((callInit.headers as Record<string, string>).Authorization).toBeUndefined()
+  })
+
+  it('sends a Bearer Authorization header when VITE_API_KEY is configured', async () => {
+    vi.stubEnv('VITE_API_KEY', 'test-secret')
+    const fetchMock = vi.fn(async () => Response.json([]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await listSessions()
+
+    const [, callInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect((callInit.headers as Record<string, string>).Authorization).toBe('Bearer test-secret')
+  })
+
+  it('sends the Authorization header on requests using the raw fetch path (deleteSession)', async () => {
+    vi.stubEnv('VITE_API_KEY', 'test-secret')
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await deleteSession('session_1')
+
+    const [, callInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect((callInit.headers as Record<string, string>).Authorization).toBe('Bearer test-secret')
+  })
+})
+
 describe('updateSessionPin', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
