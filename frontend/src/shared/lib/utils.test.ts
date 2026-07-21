@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  filterSessionsByQuery,
   formatFileSize,
   formatRelativeTime,
   generateId,
@@ -119,5 +120,29 @@ describe('utils', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'uuid-test' })
     expect(generateId()).toBe('uuid-test')
     vi.unstubAllGlobals()
+  })
+
+  it('filters sessions by a case-insensitive title match', () => {
+    const sessions = [
+      { id: '1', title: 'Dúvida sobre Flask' },
+      { id: '2', title: 'Listas em Python' },
+      { id: '3', title: 'SQLAlchemy e migrations' },
+    ]
+
+    expect(filterSessionsByQuery(sessions, 'flask')).toEqual([sessions[0]])
+    expect(filterSessionsByQuery(sessions, 'PYTHON')).toEqual([sessions[1]])
+  })
+
+  it('returns every session when the query is empty or blank', () => {
+    const sessions = [{ id: '1', title: 'Dúvida sobre Flask' }]
+
+    expect(filterSessionsByQuery(sessions, '')).toEqual(sessions)
+    expect(filterSessionsByQuery(sessions, '   ')).toEqual(sessions)
+  })
+
+  it('returns an empty list when nothing matches', () => {
+    const sessions = [{ id: '1', title: 'Dúvida sobre Flask' }]
+
+    expect(filterSessionsByQuery(sessions, 'inexistente')).toEqual([])
   })
 })

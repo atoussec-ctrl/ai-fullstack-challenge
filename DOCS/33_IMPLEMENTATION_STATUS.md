@@ -33,8 +33,9 @@ Auditoria realizada em 2026-07-03. Atualizado em 2026-07-21 apos o fechamento da
 | Audio | Parcial | Grava via MediaRecorder; sem transcricao real dedicada. |
 | Tema | Implementado | Claro/escuro persistido em localStorage. |
 | E2E | Parcial | Playwright cobre shell e biblioteca, mas depende de Chrome. |
-| Acessibilidade | Parcial | Falta modal semantics/focus trap no drawer e alternativa clara ao swipe. |
-| Modularidade | Parcial | `App.tsx` concentra muitas responsabilidades. |
+| Acessibilidade | Implementado | Drawer mobile com `role=dialog`, `aria-modal`, focus trap e Escape; pin/delete de sessão já tinha alternativa por teclado desde a Fase 1. |
+| Modularidade | Parcial | `App.tsx` concentra muitas responsabilidades (fora do escopo do gate de cobertura, mas coberto por testes de integração em `App.test.tsx`). |
+| Busca de conversas | Implementado | Filtro por título na sidebar. |
 
 ## Testes e verificacoes
 
@@ -52,10 +53,10 @@ Resultado local da auditoria:
 ## Pendencias mais relevantes
 
 1. Streaming real do provedor (hoje a rota SSE reproduz uma mensagem ja persistida).
-2. Refatorar `App.tsx` (1611 linhas, fora do escopo do gate de cobertura) por dominios.
+2. Refatorar `App.tsx` (1611 linhas) por dominios — `features/chat`, `features/books`, `features/settings`.
 3. Conectar a busca semantica aos livros reais (hoje indexa 6 documentos fixos).
-4. Acessibilidade do drawer mobile (`role=dialog`, `aria-modal`, focus trap, Escape).
-5. Metricas de operacao (latencia, erros, chamadas LLM).
-6. Retry com backoff no gateway de IA (timeout ja existe; falha ainda nao tenta novamente).
+4. Metricas de operacao (latencia, erros, chamadas LLM).
+5. Retry com backoff no gateway de IA (timeout ja existe; falha ainda nao tenta novamente).
+6. Limpeza de anexos orfaos definitivos (o cleanup client-side existe; falta um job de backstop para o caso de o proprio cleanup falhar).
 
-Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao, compensacao de anexos orfaos apos falha no envio da mensagem, timeout do gateway de IA, rate limiting no endpoint de chat, `request_id` gerado/correlacionado e `LOG_LEVEL` aplicado globalmente.
+Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao, compensacao de anexos orfaos apos falha no envio da mensagem, timeout do gateway de IA, rate limiting no endpoint de chat, `request_id` gerado/correlacionado, `LOG_LEVEL` aplicado globalmente, acessibilidade do drawer mobile, busca de conversas por titulo, cleanup do microfone no unmount, e remocao de dependencias mortas (`@tanstack/react-router`, `zod`).

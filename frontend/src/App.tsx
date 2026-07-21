@@ -62,8 +62,9 @@ import type {
   CreateBookInput,
   ThinkingMode,
 } from '@/shared/api/types'
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility'
 import { useHandleMobileSideBar } from '@/hooks/useHandleMobileSideBar'
-import { cn, formatFileSize, groupSessionsForSidebar } from '@/shared/lib/utils'
+import { cn, filterSessionsByQuery, formatFileSize, groupSessionsForSidebar } from '@/shared/lib/utils'
 
 const MODEL_OPTIONS = [
   'deepseek-ai/DeepSeek-V4-Flash',
@@ -132,6 +133,10 @@ function App() {
   })
   const [activeView, setActiveView] = useState<AppView>('chat')
   const mobileSidebar = useHandleMobileSideBar()
+  const mobileDrawerRef = useDialogAccessibility<HTMLElement>(
+    mobileSidebar.isOpen,
+    mobileSidebar.handleClose,
+  )
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const pendingAttachmentsRef = useRef<PendingAttachment[]>([])
   const [uiError, setUiError] = useState<string | null>(null)
@@ -266,9 +271,10 @@ function App() {
 
   const sessions = useMemo(() => sessionsQuery.data ?? [], [sessionsQuery.data])
   const messages = messagesQuery.data ?? []
+  const [sessionSearchQuery, setSessionSearchQuery] = useState('')
   const { pinned: pinnedSessions, groups: groupedSessions } = useMemo(
-    () => groupSessionsForSidebar(sessions),
-    [sessions],
+    () => groupSessionsForSidebar(filterSessionsByQuery(sessions, sessionSearchQuery)),
+    [sessions, sessionSearchQuery],
   )
   const selectedSession = sessions.find(session => session.id === selectedSessionId)
 
@@ -357,6 +363,8 @@ function App() {
       groupedSessions={groupedSessions}
       selectedSessionId={selectedSessionId}
       isLoading={sessionsQuery.isLoading}
+      searchQuery={sessionSearchQuery}
+      onSearchQueryChange={setSessionSearchQuery}
       onNewChat={() => {
         setActiveView('chat')
         setSelectedSessionId(null)
@@ -408,7 +416,12 @@ function App() {
               onClick={mobileSidebar.handleClose}
             >
               <motion.aside
-                className="h-full w-[82vw] max-w-[326px] border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+                ref={mobileDrawerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Menu de navegação"
+                tabIndex={-1}
+                className="h-full w-[82vw] max-w-[326px] border-r border-sidebar-border bg-sidebar text-sidebar-foreground outline-none"
                 initial={{ x: -340 }}
                 animate={{ x: 0 }}
                 exit={{ x: -340 }}
@@ -528,6 +541,8 @@ interface ChatSidebarProps {
   selectedSessionId: string | null
   activeView: AppView
   isLoading: boolean
+  searchQuery: string
+  onSearchQueryChange: (query: string) => void
   onNewChat: () => void
   onOpenBooks: () => void
   onOpenAssistant: () => void
@@ -546,6 +561,8 @@ function ChatSidebar({
   selectedSessionId,
   activeView,
   isLoading,
+  searchQuery,
+  onSearchQueryChange,
   onNewChat,
   onOpenBooks,
   onOpenAssistant,
@@ -558,6 +575,7 @@ function ChatSidebar({
   isPinningSession,
 }: ChatSidebarProps) {
   const { armedSessionId, disarmSwipe, getRowHandlers } = useSessionSwipeGesture()
+  const [isSearchVisible, setIsSearchVisible] = useState(false)
 
   async function handleDelete(sessionId: string) {
     await onDeleteSession(sessionId)
@@ -619,7 +637,29 @@ function ChatSidebar({
             onNewChat()
           }}
         />
-        <SidebarButton icon={<Search size={18} />} label="Buscar chats" />
+        <SidebarButton
+          icon={<Search size={18} />}
+          label="Buscar chats"
+          active={isSearchVisible}
+          onClick={() => {
+            setIsSearchVisible(current => {
+              const next = !current
+              if (!next) onSearchQueryChange('')
+              return next
+            })
+          }}
+        />
+        {isSearchVisible ? (
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={event => onSearchQueryChange(event.target.value)}
+            placeholder="Buscar por título..."
+            aria-label="Buscar chats"
+            autoFocus
+            className="h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/40 px-3 text-sm text-sidebar-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        ) : null}
         <SidebarButton
           active={activeView === 'books'}
           icon={<BookOpen size={18} />}
@@ -664,7 +704,9 @@ function ChatSidebar({
             ))}
           </>
         ) : (
-          <p className="px-2 text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
+          <p className="px-2 text-sm text-muted-foreground">
+            {searchQuery.trim() ? 'Nenhuma conversa encontrada.' : 'Nenhuma conversa ainda.'}
+          </p>
         )}
       </div>
 

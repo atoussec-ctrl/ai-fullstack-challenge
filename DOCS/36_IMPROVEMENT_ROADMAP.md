@@ -66,14 +66,16 @@ sequenceDiagram
 
 ## P3 - Evolucao de produto e DX
 
-| Item | Resultado esperado | Criterio de aceite |
-| --- | --- | --- |
-| Refatorar `App.tsx` | Codigo modular e testavel. | Views/hooks extraidos; coverage inclui logica movida. |
-| Drawer acessivel | Navegacao mobile inclusiva. | Focus trap, Escape, `role=dialog`, testes de acessibilidade. |
-| Alternativa ao swipe | Pin/delete por teclado. | Botoes/menu contextual com teste. |
-| Busca real de chats | Botao existente passa a funcionar. | Filtro por titulo/conteudo com testes. |
-| Busca vetorial real | FAISS/embeddings opcionais funcionam. | Teste opcional com dependencia AI instalada. |
-| Localizacao PT-BR | Labels consistentes. | Datas relativas usam `Intl.RelativeTimeFormat('pt-BR')`. |
+| Item | Resultado esperado | Criterio de aceite | Status |
+| --- | --- | --- | --- |
+| Refatorar `App.tsx` | Codigo modular e testavel. | Views/hooks extraidos; coverage inclui logica movida. | Aberto — permanece o maior item pendente do roadmap. |
+| Drawer acessivel | Navegacao mobile inclusiva. | Focus trap, Escape, `role=dialog`, testes de acessibilidade. | Concluido — `useDialogAccessibility` (hook proprio, testado). |
+| Alternativa ao swipe | Pin/delete por teclado. | Botoes/menu contextual com teste. | Concluido (Fase 1). |
+| Busca real de chats | Botao existente passa a funcionar. | Filtro por titulo/conteudo com testes. | Concluido — filtro por titulo; conteudo das mensagens fica para uma iteracao futura se houver demanda. |
+| Busca vetorial real | FAISS/embeddings opcionais funcionam. | Teste opcional com dependencia AI instalada. | Aberto. |
+| Localizacao PT-BR | Labels consistentes. | Datas relativas usam `Intl.RelativeTimeFormat('pt-BR')`. | Aberto. |
+| Cleanup de dependencias mortas | `package.json` reflete o que o codigo realmente usa. | `@tanstack/react-router` e `zod` (nenhum dos dois importado em lugar algum) removidos. | Concluido. |
+| Cleanup do microfone no unmount | `useAudioRecorder` nao deixa o microfone ligado. | Effect de cleanup testado com desmontagem durante gravacao. | Concluido. |
 
 ## Sequencia recomendada
 
