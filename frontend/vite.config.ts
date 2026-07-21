@@ -43,11 +43,17 @@ export default defineConfig({
         // types.ts contains only TypeScript type declarations — no executable code to cover
         'src/shared/api/types.ts',
       ],
+      // Alvo é 95% (ver plano de melhorias). branches fica em 90% porque
+      // handleDragEnd em ChatSessionRow.tsx só é acionado pelo prop sintético
+      // onDragEnd do Framer Motion (não um evento DOM real) — não dá para
+      // exercitar via fireEvent sem reintroduzir hacks de fiber do React.
+      // A lógica de decisão em si (resolveSwipeAction) já é 100% testada;
+      // o gesto de arrastar real fica coberto pelo Playwright E2E.
       thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85,
+        lines: 94,
+        functions: 93,
+        branches: 90,
+        statements: 92,
       },
     },
   },

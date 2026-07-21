@@ -57,7 +57,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   thinking_mode?: ThinkingMode
-  status: 'pending' | 'streaming' | 'completed' | 'error'
+  status: 'pending' | 'streaming' | 'completed' | 'failed'
   attachments: Attachment[]
   created_at: string
 }

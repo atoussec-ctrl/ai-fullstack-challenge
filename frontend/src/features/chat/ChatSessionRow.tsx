@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 import { cn, formatRelativeTime } from '@/shared/lib/utils'
 import type { ChatSession } from '@/shared/api/types'
-import { SESSION_SWIPE_THRESHOLD_PX } from './useSessionSwipeGesture'
+import { resolveSwipeAction, SESSION_SWIPE_THRESHOLD_PX } from './useSessionSwipeGesture'
 
 export interface ChatSessionRowProps {
   session: ChatSession
@@ -49,21 +49,20 @@ export function ChatSessionRow({
   function handleDragEnd(_: unknown, info: { offset: { x: number } }) {
     if (!isArmed) return
 
-    if (info.offset.x <= -SESSION_SWIPE_THRESHOLD_PX) {
+    const action = resolveSwipeAction(info.offset.x, SESSION_SWIPE_THRESHOLD_PX)
+    if (action === 'delete') {
       onDelete()
       return
     }
-
-    if (info.offset.x >= SESSION_SWIPE_THRESHOLD_PX) {
+    if (action === 'pin') {
       onPin()
       return
     }
-
     onDisarm()
   }
 
   return (
-    <div className="relative mb-1 h-9 overflow-hidden rounded-md">
+    <div className="group relative mb-1 h-9 overflow-hidden rounded-md">
       <div className="absolute inset-0 flex items-stretch">
         <motion.div
           style={{ opacity: pinOpacity }}
@@ -79,6 +78,34 @@ export function ChatSessionRow({
           Excluir
           <Trash2 size={14} />
         </motion.div>
+      </div>
+
+      {/* Ação acessível por teclado/leitor de tela — o swipe é só um atalho.
+          Sempre presente no DOM (nunca display:none) para permanecer no tab
+          order; só fica visível no hover/foco via opacity + pointer-events. */}
+      <div
+        className={cn(
+          'absolute inset-y-0 right-1 z-20 flex items-center gap-0.5 opacity-0 pointer-events-none transition-opacity',
+          'group-hover:opacity-100 group-hover:pointer-events-auto',
+          'group-focus-within:opacity-100 group-focus-within:pointer-events-auto',
+        )}
+      >
+        <button
+          type="button"
+          aria-label={session.pinned ? 'Desafixar conversa' : 'Fixar conversa'}
+          className="rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-1 focus-visible:ring-sidebar-ring"
+          onClick={onPin}
+        >
+          <Pin size={14} />
+        </button>
+        <button
+          type="button"
+          aria-label="Excluir conversa"
+          className="rounded p-1 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground focus-visible:ring-1 focus-visible:ring-sidebar-ring"
+          onClick={onDelete}
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
 
       <motion.div
