@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from flask import jsonify, request
+from flask import jsonify
 
 from app.errors import ValidationError
+from app.request_id import current_request_id
 
 MAX_PAGE_SIZE = 200
 
@@ -48,7 +49,7 @@ def error_response(
             "message": message,
             "details": details or {},
         },
-        "request_id": request.headers.get("X-Request-ID"),
+        "request_id": current_request_id(),
     }
     return jsonify(payload), status_code
 

@@ -30,6 +30,7 @@ def resolve_sqlite_url(value: str) -> str:
 class Config:
     """Base configuration shared by all environments."""
 
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     JSON_SORT_KEYS: bool = False
@@ -47,6 +48,22 @@ class Config:
     CHAT_MAX_OUTPUT_TOKENS: int = int(os.getenv("CHAT_MAX_OUTPUT_TOKENS", "4096"))
     # Limite de caracteres por mensagem de entrada (protege o prompt do LLM).
     CHAT_MAX_MESSAGE_CHARS: int = int(os.getenv("CHAT_MAX_MESSAGE_CHARS", "8000"))
+    # Timeout (segundos) de cada chamada ao provedor de IA — sem isso, um
+    # provedor lento ou travado prende a requisição indefinidamente.
+    CHAT_GATEWAY_TIMEOUT_SECONDS: int = int(os.getenv("CHAT_GATEWAY_TIMEOUT_SECONDS", "30"))
+
+    # Rate limiting (flask-limiter). Armazenamento em memória por processo —
+    # sob múltiplos workers do Gunicorn, o limite real é aproximadamente
+    # RATE_LIMIT_CHAT_MESSAGES × número de workers, não um contador global
+    # compartilhado. Suficiente para conter abuso básico nesta escala; um
+    # backend compartilhado (Redis) seria necessário para um limite exato
+    # entre processos.
+    RATELIMIT_DEFAULT: str = os.getenv("RATE_LIMIT_DEFAULT", "200 per minute")
+    RATELIMIT_HEADERS_ENABLED: bool = True
+    # Limite dedicado e mais estrito para o endpoint que chama o provedor de
+    # IA pago — lido dinamicamente a cada requisição (ver routes/chat.py),
+    # não fixado na importação do módulo.
+    RATE_LIMIT_CHAT_MESSAGES: str = os.getenv("RATE_LIMIT_CHAT_MESSAGES", "20 per minute")
     # CSV de modelos que o cliente pode solicitar explicitamente. Vazio = só os
     # modelos já configurados pelo operador (HF_CHAT_MODEL / OPENAI_MODEL).
     ALLOWED_CHAT_MODELS: str = os.getenv("ALLOWED_CHAT_MODELS", "")
@@ -113,6 +130,12 @@ class TestingConfig(Config):
     FAISS_INDEX_PATH: str = "/tmp/mindsight-test-faiss.index"
     WTF_CSRF_ENABLED: bool = False
     API_KEY: str = ""
+    # Pinned rather than inherited from a possibly noisy local .env — matches
+    # Python's own default so existing caplog-based assertions stay unaffected.
+    LOG_LEVEL: str = "WARNING"
+    # Off by default so the suite's repeated calls to the same routes never
+    # get throttled; individual rate-limit tests opt back in per test.
+    RATELIMIT_ENABLED: bool = False
 
 
 class ProductionConfig(Config):

@@ -5,14 +5,21 @@ from __future__ import annotations
 import json
 import time
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
+from app.extensions import limiter
 from app.repositories import ChatRepository
 from app.services.chat import ChatService
 from app.services.observability import record_feedback
 from app.utils.http import error_response, parse_pagination, validation_error
 
 chat_bp = Blueprint("chat", __name__)
+
+
+def _chat_message_rate_limit() -> str:
+    """Read fresh on every request (not fixed at import time) so tests can
+    override RATE_LIMIT_CHAT_MESSAGES per app instance."""
+    return current_app.config["RATE_LIMIT_CHAT_MESSAGES"]
 
 
 @chat_bp.get("/chat/sessions")
@@ -58,6 +65,7 @@ def list_messages(session_id: str):
 
 
 @chat_bp.post("/chat/messages")
+@limiter.limit(_chat_message_rate_limit)
 def create_message():
     if request.content_type and request.content_type.startswith("multipart/form-data"):
         payload = request.form

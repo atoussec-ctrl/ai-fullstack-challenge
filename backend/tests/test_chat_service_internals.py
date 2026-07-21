@@ -18,6 +18,7 @@ from app.extensions import db
 from app.models import Attachment, Book
 from app.repositories import ChatRepository
 from app.services.chat import (
+    DEFAULT_CHAT_GATEWAY_TIMEOUT_SECONDS,
     DEFAULT_CHAT_MAX_MESSAGE_CHARS,
     DEFAULT_CHAT_MAX_OUTPUT_TOKENS,
     HF_ROUTER_BASE_URL,
@@ -26,6 +27,7 @@ from app.services.chat import (
     LangChainOpenAIGateway,
     _effective_api_key,
     build_chat_gateway,
+    chat_gateway_timeout_seconds,
     chat_max_message_chars,
     chat_max_output_tokens,
     extract_ai_message_content,
@@ -99,6 +101,33 @@ def test_langchain_gateway_builds_prompt_and_returns_content(app, monkeypatch):
     assert captured["kwargs"]["model"] == "gpt-4.1-mini"
     # system + histórico (2 turnos) + turno atual do usuário
     assert len(captured["messages"]) == 4
+    assert captured["kwargs"]["timeout"] == DEFAULT_CHAT_GATEWAY_TIMEOUT_SECONDS
+
+
+def test_langchain_gateway_uses_configured_timeout(app, monkeypatch):
+    import langchain_openai
+
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        content = "ok"
+        response_metadata = {"finish_reason": "stop"}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            captured["kwargs"] = kwargs
+
+        def invoke(self, messages):
+            return FakeResponse()
+
+    monkeypatch.setattr(langchain_openai, "ChatOpenAI", FakeChatOpenAI)
+
+    with app.app_context():
+        app.config["CHAT_GATEWAY_TIMEOUT_SECONDS"] = 5
+        gateway = LangChainOpenAIGateway(model="gpt-4.1-mini", api_key="sk-test")
+        gateway.answer("pergunta", "fast")
+
+    assert captured["kwargs"]["timeout"] == 5
 
 
 def test_langchain_gateway_appends_truncation_notice_when_length_limited(app, monkeypatch):
@@ -163,6 +192,33 @@ def test_chat_max_message_chars_falls_back_to_default_when_not_numeric(app):
         app.config["CHAT_MAX_MESSAGE_CHARS"] = "não-é-um-número"
 
         assert chat_max_message_chars() == DEFAULT_CHAT_MAX_MESSAGE_CHARS
+
+
+# ── chat_gateway_timeout_seconds ──
+
+
+def test_chat_gateway_timeout_seconds_reads_from_config(app):
+    with app.app_context():
+        app.config["CHAT_GATEWAY_TIMEOUT_SECONDS"] = 45
+        assert chat_gateway_timeout_seconds() == 45
+
+
+def test_chat_gateway_timeout_seconds_falls_back_to_default_when_not_numeric(app):
+    with app.app_context():
+        app.config["CHAT_GATEWAY_TIMEOUT_SECONDS"] = "não-é-um-número"
+        assert chat_gateway_timeout_seconds() == DEFAULT_CHAT_GATEWAY_TIMEOUT_SECONDS
+
+
+def test_chat_gateway_timeout_seconds_is_clamped_to_a_sane_upper_bound(app):
+    with app.app_context():
+        app.config["CHAT_GATEWAY_TIMEOUT_SECONDS"] = 10_000
+        assert chat_gateway_timeout_seconds() == 300
+
+
+def test_chat_gateway_timeout_seconds_is_clamped_to_a_sane_lower_bound(app):
+    with app.app_context():
+        app.config["CHAT_GATEWAY_TIMEOUT_SECONDS"] = 0
+        assert chat_gateway_timeout_seconds() == 1
 
 
 # ── build_chat_gateway: ramos de seleção não cobertos pelos testes existentes ──

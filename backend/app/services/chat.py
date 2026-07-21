@@ -23,6 +23,7 @@ GATEWAY_FAILURE_MESSAGE = (
     "Não foi possível gerar a resposta da IA agora. Tente novamente em instantes."
 )
 DEFAULT_CHAT_MAX_MESSAGE_CHARS = 8000
+DEFAULT_CHAT_GATEWAY_TIMEOUT_SECONDS = 30
 
 # Modelos OpenAI de reasoning aceitam reasoning_effort, mas rejeitam temperature.
 REASONING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5")
@@ -176,6 +177,7 @@ class LangChainOpenAIGateway(ChatCompletionGateway):
             model=self.model,
             api_key=self.api_key,
             base_url=self.base_url,
+            timeout=chat_gateway_timeout_seconds(),
             **chat_model_kwargs(self.model, thinking_mode),
         )
         prompt = build_prompt_messages(
@@ -214,6 +216,22 @@ def chat_max_output_tokens() -> int:
     except ValueError:
         parsed = DEFAULT_CHAT_MAX_OUTPUT_TOKENS
     return max(256, min(parsed, 128_000))
+
+
+def chat_gateway_timeout_seconds() -> int:
+    """Resolve the LLM request timeout from Flask config or env.
+
+    Without an explicit timeout, a slow or hung provider call blocks the
+    request indefinitely — this bounds it to a controlled failure instead.
+    """
+    raw = _gateway_setting(
+        "CHAT_GATEWAY_TIMEOUT_SECONDS", str(DEFAULT_CHAT_GATEWAY_TIMEOUT_SECONDS)
+    )
+    try:
+        parsed = int(raw)
+    except ValueError:
+        parsed = DEFAULT_CHAT_GATEWAY_TIMEOUT_SECONDS
+    return max(1, min(parsed, 300))
 
 
 def chat_max_message_chars() -> int:

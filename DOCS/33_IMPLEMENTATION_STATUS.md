@@ -12,7 +12,7 @@ Auditoria realizada em 2026-07-03. Atualizado em 2026-07-21 apos o fechamento da
 | Importacao de livros | Implementado | TXT/MD/JSON/PDF com extracao heuristica. |
 | Chat | Implementado | Sessoes, mensagens, historico, contexto de livros e anexos. |
 | SSE | Parcial | Emite playback da mensagem persistida, nao stream real do LLM. |
-| Gateways IA | Parcial | Local, OpenAI-compatible, HF router; sem timeout/rate limit robusto. |
+| Gateways IA | Parcial | Local, OpenAI-compatible, HF router; timeout e rate limit por IP em produção; sem retry com backoff. |
 | LangSmith | Parcial | Tracing/feedback opcional com no-op resiliente. |
 | Uploads | Parcial | Valida extensao/tamanho e remove arquivos ao deletar sessao; ainda precisa hardening e transacao de envio. |
 | Busca semantica | Demo | Hashing local; config de FAISS/embeddings ainda nao efetivada. |
@@ -51,11 +51,11 @@ Resultado local da auditoria:
 
 ## Pendencias mais relevantes
 
-1. Adicionar timeout/retry e rate limit no gateway de IA.
-2. Streaming real do provedor (hoje a rota SSE reproduz uma mensagem ja persistida).
-3. Refatorar `App.tsx` (1611 linhas, fora do escopo do gate de cobertura) por dominios.
-4. Conectar a busca semantica aos livros reais (hoje indexa 6 documentos fixos).
-5. Acessibilidade do drawer mobile (`role=dialog`, `aria-modal`, focus trap, Escape).
-6. Gerar `request_id` quando ausente e estruturar logs para correlacao.
+1. Streaming real do provedor (hoje a rota SSE reproduz uma mensagem ja persistida).
+2. Refatorar `App.tsx` (1611 linhas, fora do escopo do gate de cobertura) por dominios.
+3. Conectar a busca semantica aos livros reais (hoje indexa 6 documentos fixos).
+4. Acessibilidade do drawer mobile (`role=dialog`, `aria-modal`, focus trap, Escape).
+5. Metricas de operacao (latencia, erros, chamadas LLM).
+6. Retry com backoff no gateway de IA (timeout ja existe; falha ainda nao tenta novamente).
 
-Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao, compensacao de anexos orfaos apos falha no envio da mensagem.
+Concluidas desde a auditoria original: WSGI de producao, autenticacao minima por API key, guarda de config insegura em producao, migracoes Alembic, paginacao, compensacao de anexos orfaos apos falha no envio da mensagem, timeout do gateway de IA, rate limiting no endpoint de chat, `request_id` gerado/correlacionado e `LOG_LEVEL` aplicado globalmente.
